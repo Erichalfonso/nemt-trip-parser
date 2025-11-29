@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nemt-trip-parser"
+version = "0.1.0"
+description = "Framework-agnostic NEMT trip data parser with intelligent column mapping"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Your NEMT Company"}
+]
+dependencies = [
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "pydantic>=2.0.0",
+    "python-dateutil>=2.8.0",
+    "sqlalchemy>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "mypy>=1.6.0",
+    "ruff>=0.1.0",
+]
+llm = [
+    "anthropic>=0.25.0",
+]
+fastapi = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+]
+flask = [
+    "flask>=3.0.0",
+]
+django = [
+    "django>=4.2.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# API Keys & Secrets
+.env
+*.env
+.env.local
+config/secrets.py
+*_api_key.txt
+
+# Output Files
+llm_enhanced_output.json
+messy_clinic_output.json
+final_output_with_coords.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Database files
+*.db
+*.sqlite3
+
+# Sample/Test Excel files (remove if you want to commit them)
+ppol_example_small_clinic_messy.xlsx
