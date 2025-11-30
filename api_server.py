@@ -152,16 +152,9 @@ def upload_trip_data():
         # STEP 1: Parse Excel file
         print("Step 1: Parsing Excel file...")
 
-        # Temporarily modify the parse function to accept file path
-        import parse_messy_clinic
-        original_file = parse_messy_clinic.excel_file if hasattr(parse_messy_clinic, 'excel_file') else None
-        parse_messy_clinic.excel_file = filepath
-
-        trips = parse_messy_clinic.parse_messy_excel()
-
-        # Restore original
-        if original_file:
-            parse_messy_clinic.excel_file = original_file
+        # Parse the uploaded file
+        from parse_messy_clinic import parse_messy_excel
+        trips = parse_messy_excel(filepath)
 
         print(f"[OK] Parsed {len(trips)} trips\n")
 
