@@ -280,6 +280,9 @@ def get_status():
 
 
 if __name__ == '__main__':
+    # Get port from environment (Railway provides this)
+    port = int(os.getenv('PORT', 5001))
+
     print("\n" + "="*80)
     print("NEMT TRIP PARSER API SERVER")
     print("="*80)
@@ -295,9 +298,9 @@ if __name__ == '__main__':
     print("  - POST /api/upload   - Upload Excel file")
     print("  - GET  /api/status   - Get configuration")
     print()
-    print("Starting server on http://localhost:5001")
+    print(f"Starting server on port {port}")
     print("="*80)
     print()
 
     # Run Flask development server
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
