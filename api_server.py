@@ -39,10 +39,10 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 # Create upload folder if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Get configuration from environment
-API_KEY = os.getenv('PARSER_API_KEY', 'REDACTED_API_KEY')
-GOOGLE_MAPS_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
-ANTHROPIC_KEY = os.getenv('ANTHROPIC_API_KEY')
+# API Configuration (hardcoded for team deployment)
+API_KEY = 'REDACTED_API_KEY'
+GOOGLE_MAPS_KEY = 'REDACTED_GOOGLE_KEY'
+ANTHROPIC_KEY = 'REDACTED_ANTHROPIC_KEY'
 USE_LLM = os.getenv('USE_LLM', 'false').lower() == 'true'
 USE_GEOCODING = os.getenv('USE_GEOCODING', 'true').lower() == 'true'
 GEOCODING_PROVIDER = os.getenv('GEOCODING_PROVIDER', 'google')
