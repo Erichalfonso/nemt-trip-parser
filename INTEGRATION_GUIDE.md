@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-Your parser API is live at: **`https://nemt-parser.up.railway.app/api/upload`**
+Your parser API is live at: **`https://web-production-c09c8.up.railway.app/api/upload`**
 
 ---
 
@@ -17,7 +17,7 @@ X-API-Key: REDACTED_API_KEY
 
 ## 📡 API Endpoint
 
-**URL:** `POST https://nemt-parser.up.railway.app/api/upload`
+**URL:** `POST https://web-production-c09c8.up.railway.app/api/upload`
 
 **Content-Type:** `multipart/form-data`
 
@@ -36,7 +36,7 @@ X-API-Key: REDACTED_API_KEY
 ```python
 import requests
 
-PARSER_API_URL = "https://nemt-parser.up.railway.app/api/upload"
+PARSER_API_URL = "https://web-production-c09c8.up.railway.app/api/upload"
 PARSER_API_KEY = "REDACTED_API_KEY"
 
 def process_clinic_upload(uploaded_file, clinic_id):
@@ -138,7 +138,7 @@ import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-PARSER_API_URL = "https://nemt-parser.up.railway.app/api/upload"
+PARSER_API_URL = "https://web-production-c09c8.up.railway.app/api/upload"
 PARSER_API_KEY = "REDACTED_API_KEY"
 
 @csrf_exempt
@@ -192,7 +192,7 @@ def upload_clinic_trips(request):
 const axios = require('axios');
 const FormData = require('form-data');
 
-const PARSER_API_URL = 'https://nemt-parser.up.railway.app/api/upload';
+const PARSER_API_URL = 'https://web-production-c09c8.up.railway.app/api/upload';
 const PARSER_API_KEY = 'REDACTED_API_KEY';
 
 async function processClinicUpload(file, clinicId) {
@@ -262,7 +262,7 @@ use Illuminate\Support\Facades\Http;
 
 class TripController extends Controller
 {
-    const PARSER_API_URL = 'https://nemt-parser.up.railway.app/api/upload';
+    const PARSER_API_URL = 'https://web-production-c09c8.up.railway.app/api/upload';
     const PARSER_API_KEY = 'REDACTED_API_KEY';
 
     public function uploadClinicTrips(Request $request)
@@ -307,7 +307,7 @@ class TripController extends Controller
 ## 📥 Request Example
 
 ```bash
-curl -X POST https://nemt-parser.up.railway.app/api/upload \
+curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
   -H "X-API-Key: REDACTED_API_KEY" \
   -F "file=@clinic_trips.xlsx" \
   -F "clinic_id=clinic_123" \
@@ -504,7 +504,7 @@ Download sample: [ppol_example_small_clinic_messy.xlsx](https://github.com/Erich
 ### Test Request
 
 ```bash
-curl -X POST https://nemt-parser.up.railway.app/api/upload \
+curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
   -H "X-API-Key: REDACTED_API_KEY" \
   -F "file=@test_file.xlsx" \
   -F "clinic_id=test_clinic"
@@ -531,7 +531,7 @@ Should return JSON with parsed trips in ~3-5 seconds.
 ### Health Check
 
 ```bash
-curl https://nemt-parser.up.railway.app/health
+curl https://web-production-c09c8.up.railway.app/health
 ```
 
 Returns:
@@ -547,7 +547,7 @@ Returns:
 
 ```bash
 curl -H "X-API-Key: REDACTED_API_KEY" \
-  https://nemt-parser.up.railway.app/api/status
+  https://web-production-c09c8.up.railway.app/api/status
 ```
 
 ---
