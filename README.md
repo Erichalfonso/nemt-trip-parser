@@ -1,233 +1,223 @@
-# NEMT Trip Parser
+# NEMT Trip Parser API
 
-Intelligent Excel parser for NEMT (Non-Emergency Medical Transportation) trip data. Accepts messy clinic Excel files in any format and returns standardized JSON output.
+**Production-ready API for parsing NEMT (Non-Emergency Medical Transportation) trip data.**
 
-## Features
+Accepts messy clinic Excel files in any format and returns standardized JSON with GPS coordinates and cleaned addresses.
 
-- **Smart Column Mapping**: Automatically detects column names regardless of format
-- **LLM Enhancement**: Uses Claude AI to clean and standardize addresses
-- **Geocoding**: Converts addresses to GPS coordinates (Google Maps or OpenStreetMap)
-- **Flexible Input**: Handles various date/time formats, phone number formats
-- **RESTful API**: Simple HTTP endpoint for integration
+---
 
-## Quick Start
+## 🚀 Live API
 
-### Installation
+**Endpoint:** `https://web-production-c09c8.up.railway.app/api/upload`
 
-```bash
-# Clone repository
-git clone <your-repo-url>
-cd nemt-trip-parser
+**Status:** ✅ Deployed and running on Railway
 
-# Install dependencies
-pip install -r requirements.txt
+---
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env and add your API keys
-```
+## 📋 For Website Integration Team
 
-### Basic Usage
+**👉 Read the [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) for complete API documentation.**
 
-```python
-from parse_messy_clinic import parse_messy_excel
+It includes:
+- API endpoint and authentication
+- Request/response formats
+- Code examples (Python, Node.js, PHP)
+- Error handling
+- Testing instructions
 
-# Parse Excel file
-trips = parse_messy_excel()
+---
 
-# Output: Standardized JSON array
-```
+## ✨ Features
 
-### API Usage
+- ✅ **Smart Excel Parsing**: Handles messy clinic data in any format
+- ✅ **AI Enhancement**: Uses Claude to clean addresses and identify clinics
+- ✅ **GPS Geocoding**: Converts addresses to latitude/longitude (Google Maps)
+- ✅ **Flexible Input**: Handles various date/time/phone formats
+- ✅ **RESTful API**: Simple HTTP endpoint, ready to integrate
 
-```bash
-# Start the API server
-python api_server.py
+---
 
-# Upload a file
-curl -X POST http://localhost:5000/api/upload \
-  -H "X-API-Key: your-api-key" \
-  -F "file=@clinic_data.xlsx" \
-  -F "clinic_id=clinic_123"
-```
-
-## Architecture
-
-```
-Excel Upload → Parser → LLM Enhancement → Geocoding → JSON Response
-```
-
-### Components
-
-1. **Parser Layer** (`parse_messy_clinic.py`)
-   - Extracts data from Excel files
-   - Handles messy formats, dates, times
-
-2. **Enhancement Layer** (`parse_with_llm.py`)
-   - Claude AI integration
-   - Cleans and standardizes addresses
-   - Infers full clinic addresses from partial data
-
-3. **Geocoding Layer** (`geocode_with_google.py`, `geocode_free.py`)
-   - Google Maps API (accurate, paid)
-   - OpenStreetMap (free, slower)
-
-4. **API Layer** (`api_server.py`)
-   - RESTful HTTP endpoint
-   - Authentication via API key
-   - Error handling and validation
-
-## JSON Output Format
-
-```json
-{
-  "passenger_name": "John Doe",
-  "country_code": "+1",
-  "passenger_phone": "3051234567",
-  "passenger_language": "en",
-  "service_type_id": 1,
-  "source": "123 Main St, Miami, FL 33101",
-  "pickup_latitude": 25.7617,
-  "pickup_longitude": -80.1918,
-  "destination": "Jackson Memorial Hospital, 1611 NW 12th Ave, Miami, FL 33136",
-  "dropoff_latitude": 25.7877,
-  "dropoff_longitude": -80.2106,
-  "pickup_date_time": "2025-12-05 09:00:00",
-  "appointment_time": "2025-12-05 11:15:00",
-  "special_note": "Wheelchair accessible",
-  "return_trip_needed": "yes",
-  "return_trip_type": "immediate"
-}
-```
-
-## Configuration
-
-### Required Environment Variables
+## 🎯 Quick Test
 
 ```bash
-# API Keys
-ANTHROPIC_API_KEY=your-claude-api-key
-GOOGLE_MAPS_API_KEY=your-google-maps-key
-
-# API Server
-PARSER_API_KEY=your-secret-key-for-authentication
+curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
+  -H "X-API-Key: REDACTED_API_KEY" \
+  -F "file=@your_clinic_file.xlsx" \
+  -F "clinic_id=test_clinic" \
+  -F "use_geocoding=true" \
+  -F "use_llm=true"
 ```
-
-### Optional Configuration
-
-- `use_llm`: Enable LLM enhancement (default: false)
-- `use_geocoding`: Enable geocoding (default: false)
-- `geocoding_provider`: "google" or "osm" (default: "google")
-
-## Development
-
-### Project Structure
-
-```
-nemt-trip-parser/
-├── nemt_parser/              # Core library
-│   ├── core/                 # Business logic
-│   │   ├── models.py         # Data models
-│   │   ├── parser.py         # Excel parsing
-│   │   ├── mapper.py         # Column mapping
-│   │   └── output_schema.py  # JSON serialization
-│   ├── database/             # Database layer (optional)
-│   └── integrations/         # Flask adapter
-├── parse_messy_clinic.py     # Standalone parser
-├── parse_with_llm.py         # LLM enhancement
-├── geocode_with_google.py    # Google Maps geocoding
-├── geocode_free.py           # OpenStreetMap geocoding
-├── api_server.py             # Production API
-└── tests/                    # Test files
-```
-
-### Running Tests
-
-```bash
-python test_parser.py
-```
-
-## Deployment
-
-### Option 1: Traditional Server
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run with gunicorn (production)
-gunicorn -w 4 -b 0.0.0.0:5000 api_server:app
-```
-
-### Option 2: Docker
-
-```bash
-docker build -t nemt-parser .
-docker run -p 5000:5000 -e ANTHROPIC_API_KEY=xxx nemt-parser
-```
-
-### Option 3: Cloud (AWS Lambda, etc.)
-
-See `deployment/` directory for cloud-specific configurations.
-
-## API Documentation
-
-### POST /api/upload
-
-Upload an Excel file for parsing.
-
-**Headers:**
-- `X-API-Key`: Authentication key
-
-**Body (multipart/form-data):**
-- `file`: Excel file (.xlsx or .xls)
-- `clinic_id`: Clinic identifier
-- `use_llm` (optional): Enable AI enhancement
-- `use_geocoding` (optional): Add GPS coordinates
 
 **Response:**
 ```json
 {
   "success": true,
-  "trips": [...],
-  "total_trips": 10,
-  "processing_time_seconds": 3.2
+  "trips": [
+    {
+      "passenger_name": "Juan G.",
+      "passenger_phone": "3055550011",
+      "source": "1230 NW 5th Street, Apartment 4B, Miami, FL 33125",
+      "pickup_latitude": 25.7780827,
+      "pickup_longitude": -80.2154498,
+      "destination": "Jackson Cancer Center, 1611 NW 12th Avenue, Miami, FL 33136",
+      "dropoff_latitude": 25.7957767,
+      "dropoff_longitude": -80.2152613,
+      "pickup_date_time": "2025-12-05 08:10:00",
+      "appointment_time": "2025-12-05 09:00:00",
+      "service_type_id": 2,
+      "return_trip_needed": "yes",
+      "return_trip_type": "immediate"
+    }
+  ],
+  "total_trips": 3,
+  "processing_time_seconds": 5.7
 }
 ```
 
-### GET /health
+---
 
-Health check endpoint.
+## 🏗️ Architecture
 
-**Response:**
+```
+Website Backend → Parser API (Railway) → Standardized JSON
+                      ↓
+            Excel Upload → Parse → LLM Clean → Geocode → Response
+```
+
+### Processing Pipeline
+
+1. **Parse Layer** - Extracts data from messy Excel formats
+2. **LLM Enhancement** (optional) - Claude AI cleans addresses and identifies clinics
+3. **Geocoding** (optional) - Google Maps converts addresses to GPS coordinates
+4. **Response** - Returns standardized JSON
+
+---
+
+## 📊 Output Format
+
+Each trip includes 17 standardized fields:
+
 ```json
 {
-  "status": "ok",
-  "timestamp": "2025-11-29T12:00:00Z"
+  "passenger_name": "string",
+  "country_code": "string",
+  "passenger_phone": "string",
+  "passenger_language": "string (en|es)",
+  "service_type_id": "number (1=ambulatory, 2=wheelchair, 3=stretcher)",
+  "source": "string (pickup address)",
+  "pickup_latitude": "number | null",
+  "pickup_longitude": "number | null",
+  "destination": "string (dropoff address)",
+  "dropoff_latitude": "number | null",
+  "dropoff_longitude": "number | null",
+  "pickup_date_time": "string (YYYY-MM-DD HH:MM:SS)",
+  "eta_time": "string | null",
+  "appointment_time": "string (YYYY-MM-DD HH:MM:SS)",
+  "special_note": "string",
+  "return_trip_needed": "string (yes|no)",
+  "return_trip_type": "string (immediate|scheduled) | null"
 }
 ```
 
-## Cost Estimation
+---
 
-- **Claude API**: ~$0.00025 per trip (Haiku model)
-- **Google Maps Geocoding**: $0.005 per address
-- **Total per trip**: ~$0.01 (with both features enabled)
-- **Monthly (1000 trips)**: ~$10
+## ⚙️ Configuration
 
-Google provides $200/month free credit, so most usage is free.
+### API Keys (Already Configured)
 
-## Contributing
+The API is pre-configured with:
+- ✅ Google Maps API key (geocoding)
+- ✅ Anthropic Claude API key (LLM enhancement)
+- ✅ Parser authentication key
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+### Optional Request Parameters
 
-## License
+Control features per request:
 
-MIT License
+- `use_geocoding`: `"true"` or `"false"` (default: true)
+- `use_llm`: `"true"` or `"false"` (default: false)
+- `clinic_id`: String identifier for tracking
 
-## Support
+**Example:**
+```bash
+# Basic parsing only (fastest, no GPS coords)
+use_geocoding=false use_llm=false
 
-For issues or questions, contact: [your-email@company.com]
+# With geocoding (adds GPS coordinates)
+use_geocoding=true use_llm=false
 
+# Full features (cleaned addresses + GPS)
+use_geocoding=true use_llm=true
+```
+
+---
+
+## 📈 Performance & Cost
+
+| Mode | Processing Time | Cost per Trip | GPS Coords | Cleaned Addresses |
+|------|----------------|---------------|------------|-------------------|
+| Basic | 0.02s | $0 | ❌ | ❌ |
+| + Geocoding | 1s | ~$0 (free tier) | ✅ | ❌ |
+| + LLM + Geocoding | 5-6s | ~$0.00025 | ✅ | ✅ |
+
+**Monthly Cost Estimate (1000 trips):**
+- Google Maps: $0 (within $200 free tier)
+- Claude API: ~$0.25
+- **Total: < $1/month**
+
+---
+
+## 🔗 Additional Documentation
+
+- **[INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)** - Complete integration guide for website team
+- **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)** - Deployment configuration and setup
+- **[TEAM_HANDOFF.md](TEAM_HANDOFF.md)** - Project handoff documentation
+
+---
+
+## 🚀 Deployment
+
+**Hosting:** Railway (https://railway.app/)
+
+**Auto-Deploy:** ✅ Enabled
+- Pushes to `main` branch automatically deploy
+- Build time: ~2-3 minutes
+- Zero downtime deployments
+
+**Monitoring:**
+- Health check: `GET https://web-production-c09c8.up.railway.app/health`
+- Status: `GET https://web-production-c09c8.up.railway.app/api/status`
+- Logs: Railway dashboard
+
+---
+
+## 🔐 Security
+
+- ✅ API key authentication required (`X-API-Key` header)
+- ✅ Private GitHub repository
+- ✅ HTTPS enforced
+- ✅ CORS enabled for cross-origin requests
+- ✅ File size limits (16MB max)
+- ✅ Allowed file types: `.xlsx`, `.xls` only
+
+---
+
+## 📞 Support
+
+**Repository:** https://github.com/Erichalfonso/nemt-trip-parser (Private)
+
+**Contact:** Erich
+
+**Railway Dashboard:** https://railway.app/
+
+---
+
+## 📝 License
+
+Proprietary - Internal company use only
+
+---
+
+**Ready to integrate!** 🎉
+
+See [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) to get started.
