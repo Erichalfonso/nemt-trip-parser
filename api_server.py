@@ -21,6 +21,7 @@ load_dotenv()
 # Import our parser components
 from parse_messy_clinic import parse_messy_excel
 from parse_with_llm import enhance_with_claude
+from parse_smart_llm import parse_excel_with_smart_llm
 from geocode_with_google import geocode_trips_google
 from geocode_free import geocode_trips_free
 
@@ -149,26 +150,20 @@ def upload_trip_data():
         print(f"File: {filename}")
         print(f"{'='*80}\n")
 
-        # STEP 1: Parse Excel file
-        print("Step 1: Parsing Excel file...")
-
-        # Parse the uploaded file
-        from parse_messy_clinic import parse_messy_excel
-        trips = parse_messy_excel(filepath)
-
-        print(f"[OK] Parsed {len(trips)} trips\n")
-
-        # STEP 2: LLM Enhancement (optional)
+        # STEP 1 & 2: Parse Excel file (with optional LLM intelligence)
         if use_llm_param and ANTHROPIC_KEY:
-            print("Step 2: Enhancing with Claude AI...")
-            trips = enhance_with_claude(trips)
-            print(f"[OK] Enhanced {len(trips)} trips\n")
+            print("Step 1: Smart LLM Parsing (intelligent field extraction)...")
+            trips = parse_excel_with_smart_llm(filepath, anthropic_api_key=ANTHROPIC_KEY)
+            print(f"[OK] Parsed {len(trips)} trips with LLM intelligence\n")
         else:
-            print("Step 2: Skipping LLM enhancement\n")
+            print("Step 1: Basic parsing (hardcoded column mapping)...")
+            trips = parse_messy_excel(filepath)
+            print(f"[OK] Parsed {len(trips)} trips\n")
+            print("Note: Enable LLM for intelligent parsing of any Excel format\n")
 
-        # STEP 3: Geocoding (optional)
+        # STEP 2: Geocoding (optional)
         if use_geocoding_param:
-            print("Step 3: Geocoding addresses...")
+            print("Step 2: Geocoding addresses...")
 
             # Save to temp JSON file for geocoding
             temp_json = filepath.replace('.xlsx', '.json').replace('.xls', '.json')
@@ -201,7 +196,7 @@ def upload_trip_data():
             os.remove(temp_json)
             print(f"[OK] Geocoded {len(trips)} trips\n")
         else:
-            print("Step 3: Skipping geocoding\n")
+            print("Step 2: Skipping geocoding\n")
 
         # Clean up uploaded file
         os.remove(filepath)
