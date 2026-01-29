@@ -1,81 +1,89 @@
 """
 Smart LLM-based parser that works with ANY Excel format.
 
-This parser:
-1. Reads Excel with pandas (any column names)
-2. Sends each row to Claude
-3. Claude intelligently extracts the standardized fields
-4. Returns standardized JSON
+OPTIMIZED APPROACH:
+1. LLM analyzes column headers + sample rows ONCE
+2. LLM outputs a column mapping (which column = which field)
+3. Python/pandas applies that mapping to ALL rows instantly
 
-Hallucination-proof because:
-- LLM only sees rows we give it (can't invent new trips)
-- One row at a time processing
-- Structured JSON output with validation
+Result: 1 LLM call + fast pandas = ~10 seconds for ANY file size
+(vs. old approach: 1 LLM call per row = 30-60 minutes for 1800 rows)
 """
 
 import pandas as pd
 import json
 import os
 import re
+from datetime import datetime
 from typing import List, Dict, Optional
 import anthropic
 
 
-def extract_trip_with_llm(row_data: Dict, row_number: int, client: anthropic.Anthropic) -> Optional[Dict]:
+def get_column_mapping_from_llm(columns: List[str], sample_rows: List[Dict], client: anthropic.Anthropic) -> Dict:
     """
-    Use Claude to intelligently extract trip data from a single Excel row.
+    Use Claude to analyze column headers and sample data, then output a mapping.
 
-    Args:
-        row_data: Dictionary of column_name -> value for this row
-        row_number: Row number for logging
-        client: Anthropic client
+    This is called ONCE per file, not per row.
 
-    Returns:
-        Standardized trip dict, or None if extraction failed
+    Returns a dict like:
+    {
+        "passenger_name": "Patient Name",
+        "passenger_phone": "Phone",
+        "source": "Pickup Address",
+        ...
+    }
     """
 
-    # Build prompt with the row data
-    prompt = f"""You are parsing NEMT (Non-Emergency Medical Transportation) trip data from an Excel row.
+    prompt = f"""You are analyzing an Excel file containing NEMT (Non-Emergency Medical Transportation) trip data.
 
-Here is the raw row data (column names may vary):
-{json.dumps(row_data, indent=2)}
+COLUMN HEADERS:
+{json.dumps(columns, indent=2)}
 
-Your task:
-1. Intelligently identify which fields map to which trip attributes
-2. Extract and standardize the data
-3. Return ONLY valid JSON in the exact format below
+SAMPLE ROWS (first 5 rows of data):
+{json.dumps(sample_rows, indent=2)}
 
-IMPORTANT:
-- Extract data ONLY from the provided row - do not invent or assume information
-- If a field is not present or unclear, use null
-- For addresses, extract exactly what is provided (don't add or infer details)
-- For dates/times, convert to ISO format: YYYY-MM-DD HH:MM:SS
-- For service_type_id: 1=ambulatory, 2=wheelchair, 3=stretcher
-- For return_trip_needed: "yes" or "no"
-- For passenger_language: "en" or "es" (default "en")
+Your task: Figure out which Excel column maps to which standardized field.
 
-Return ONLY this JSON structure (no other text):
+STANDARDIZED FIELDS WE NEED:
+- passenger_name: Patient/passenger full name
+- passenger_phone: Phone number
+- source: Pickup address (home address, origin)
+- destination: Dropoff address (clinic, doctor, hospital)
+- date: Trip date (might be combined with time)
+- appointment_time: Appointment time at destination
+- pickup_time: Pickup time (might not exist)
+- service_type: Ambulatory/wheelchair/stretcher (might be in notes)
+- return_trip: Whether return trip is needed
+- notes: Special notes, mobility info, etc.
+- language: Patient language preference (might not exist)
+
+RULES:
+1. Look at BOTH column names AND sample data to determine mappings
+2. If a field doesn't exist in the data, map it to null
+3. Some columns might contain combined data (e.g., "Name & Phone" has both)
+4. Date and time might be in same column or separate columns
+5. Address might be split across columns or in one column
+
+Return ONLY this JSON (no other text):
 {{
-  "passenger_name": "string or null",
-  "country_code": "1",
-  "passenger_phone": "10 digit phone number or null",
-  "passenger_language": "en",
-  "service_type_id": 1,
-  "source": "pickup address or null",
-  "destination": "dropoff address or null",
-  "pickup_date_time": "YYYY-MM-DD HH:MM:SS or null",
-  "appointment_time": "YYYY-MM-DD HH:MM:SS or null",
-  "special_note": "string or null",
-  "return_trip_needed": "yes or no",
-  "return_trip_type": "immediate or scheduled or null"
+    "passenger_name": "exact column name or null",
+    "passenger_phone": "exact column name or null",
+    "source": "exact column name or null",
+    "destination": "exact column name or null",
+    "date": "exact column name or null",
+    "appointment_time": "exact column name or null",
+    "pickup_time": "exact column name or null",
+    "service_type": "exact column name or null",
+    "return_trip": "exact column name or null",
+    "notes": "exact column name or null",
+    "language": "exact column name or null"
 }}"""
 
     try:
-        # Call Claude
         message = client.messages.create(
-            model="claude-3-haiku-20240307",  # Fast and cheap
-            max_tokens=800,
-            temperature=0,  # Deterministic output
+            model="claude-3-haiku-20240307",
+            max_tokens=1000,
+            temperature=0,
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -84,33 +92,230 @@ Return ONLY this JSON structure (no other text):
         # Extract JSON from response
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if not json_match:
-            print(f"  Row {row_number}: No JSON found in response")
-            return None
+            print("WARNING: Could not parse LLM mapping response")
+            return {}
 
-        trip_data = json.loads(json_match.group())
+        mapping = json.loads(json_match.group())
+        return mapping
 
-        # Validate required fields
-        if not trip_data.get('passenger_name'):
-            print(f"  Row {row_number}: Missing passenger name")
-            return None
-
-        # Add default values
-        trip_data.setdefault('pickup_latitude', None)
-        trip_data.setdefault('pickup_longitude', None)
-        trip_data.setdefault('dropoff_latitude', None)
-        trip_data.setdefault('dropoff_longitude', None)
-        trip_data.setdefault('eta_time', None)
-        trip_data.setdefault('country_code', '1')
-        trip_data.setdefault('passenger_language', 'en')
-
-        return trip_data
-
-    except json.JSONDecodeError as e:
-        print(f"  Row {row_number}: JSON parse error - {e}")
-        return None
     except Exception as e:
-        print(f"  Row {row_number}: Error - {e}")
+        print(f"ERROR getting column mapping: {e}")
+        return {}
+
+
+def parse_date_value(value) -> Optional[str]:
+    """Parse various date formats into YYYY-MM-DD"""
+    if not value or pd.isna(value):
         return None
+
+    value = str(value).strip()
+    if not value:
+        return None
+
+    # Try various formats
+    formats = [
+        "%Y-%m-%d",
+        "%m/%d/%Y",
+        "%m/%d/%y",
+        "%d/%m/%Y",
+        "%d-%b-%Y",
+        "%d-%b",
+        "%m-%d-%Y",
+        "%Y-%m-%d %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(value, fmt)
+            if dt.year < 100:
+                dt = dt.replace(year=dt.year + 2000)
+            elif dt.year == 1900:
+                dt = dt.replace(year=2025)
+            return dt.strftime("%Y-%m-%d")
+        except:
+            continue
+
+    # Try pandas
+    try:
+        dt = pd.to_datetime(value)
+        return dt.strftime("%Y-%m-%d")
+    except:
+        pass
+
+    return None
+
+
+def parse_time_value(value) -> Optional[str]:
+    """Parse various time formats into HH:MM:SS"""
+    if not value or pd.isna(value):
+        return None
+
+    value = str(value).strip().lower()
+    if not value:
+        return None
+
+    # Clean up
+    value = value.replace(' ', '').replace('a.m.', 'am').replace('p.m.', 'pm')
+
+    # Try various formats
+    formats = [
+        "%H:%M:%S",
+        "%H:%M",
+        "%I:%M%p",
+        "%I:%M %p",
+        "%I%p",
+        "%I %p",
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(value, fmt)
+            return dt.strftime("%H:%M:%S")
+        except:
+            continue
+
+    # Try just a number (hour)
+    try:
+        hour = int(re.search(r'\d+', value).group())
+        if hour < 24:
+            return f"{hour:02d}:00:00"
+    except:
+        pass
+
+    return None
+
+
+def clean_phone(value) -> Optional[str]:
+    """Extract digits from phone number"""
+    if not value or pd.isna(value):
+        return None
+
+    digits = re.sub(r'\D', '', str(value))
+    if len(digits) >= 10:
+        return digits[-10:]  # Last 10 digits
+    return digits if digits else None
+
+
+def determine_service_type(value) -> int:
+    """Determine service type: 1=ambulatory, 2=wheelchair, 3=stretcher"""
+    if not value or pd.isna(value):
+        return 1
+
+    value_lower = str(value).lower()
+
+    if any(w in value_lower for w in ['wheelchair', 'wc', 'w/c']):
+        return 2
+    elif any(w in value_lower for w in ['stretcher', 'gurney', 'strech']):
+        return 3
+    else:
+        return 1
+
+
+def parse_return_trip(value) -> tuple:
+    """Parse return trip field, returns (needed: str, type: str)"""
+    if not value or pd.isna(value):
+        return "no", None
+
+    value_lower = str(value).lower()
+
+    if any(w in value_lower for w in ['yes', 'y', 'true', '1', 'return']):
+        if any(w in value_lower for w in ['when done', 'call when', 'immediate', 'wait']):
+            return "yes", "immediate"
+        else:
+            return "yes", "scheduled"
+
+    return "no", None
+
+
+def apply_mapping_to_dataframe(df: pd.DataFrame, mapping: Dict) -> List[Dict]:
+    """
+    Apply the LLM-generated mapping to extract trips from the dataframe.
+    This is the fast part - pure pandas, no LLM calls.
+    """
+
+    trips = []
+
+    for idx, row in df.iterrows():
+        # Get raw values using the mapping
+        def get_val(field):
+            col = mapping.get(field)
+            if col and col != "null" and col in row:
+                val = row[col]
+                if pd.isna(val):
+                    return None
+                return str(val).strip() if val else None
+            return None
+
+        # Extract and clean fields
+        name = get_val('passenger_name')
+        if not name:
+            continue  # Skip rows without a name
+
+        phone = clean_phone(get_val('passenger_phone'))
+        source = get_val('source')
+        destination = get_val('destination')
+
+        # Parse date and times
+        date_str = parse_date_value(get_val('date'))
+        appt_time = parse_time_value(get_val('appointment_time'))
+        pickup_time = parse_time_value(get_val('pickup_time'))
+
+        # Combine date and time
+        if date_str:
+            if appt_time:
+                appointment_datetime = f"{date_str} {appt_time}"
+            else:
+                appointment_datetime = f"{date_str} 00:00:00"
+
+            if pickup_time:
+                pickup_datetime = f"{date_str} {pickup_time}"
+            else:
+                pickup_datetime = appointment_datetime
+        else:
+            appointment_datetime = None
+            pickup_datetime = None
+
+        # Service type from notes or dedicated column
+        notes = get_val('notes')
+        service_type_raw = get_val('service_type')
+        service_type = determine_service_type(service_type_raw or notes)
+
+        # Return trip
+        return_raw = get_val('return_trip')
+        return_needed, return_type = parse_return_trip(return_raw)
+
+        # Language
+        language = get_val('language')
+        if language and 'spanish' in language.lower():
+            language = 'es'
+        else:
+            language = 'en'
+
+        # Build trip object
+        trip = {
+            "passenger_name": name,
+            "country_code": "1",
+            "passenger_phone": phone,
+            "passenger_language": language,
+            "service_type_id": service_type,
+            "source": source,
+            "pickup_latitude": None,
+            "pickup_longitude": None,
+            "destination": destination,
+            "dropoff_latitude": None,
+            "dropoff_longitude": None,
+            "pickup_date_time": pickup_datetime,
+            "eta_time": None,
+            "appointment_time": appointment_datetime,
+            "special_note": notes,
+            "return_trip_needed": return_needed,
+            "return_trip_type": return_type
+        }
+
+        trips.append(trip)
+
+    return trips
 
 
 def parse_excel_with_smart_llm(
@@ -118,14 +323,13 @@ def parse_excel_with_smart_llm(
     anthropic_api_key: Optional[str] = None
 ) -> List[Dict]:
     """
-    Parse ANY Excel format using Claude to intelligently extract fields.
+    Parse ANY Excel format using smart schema detection.
 
-    Args:
-        excel_file: Path to Excel file
-        anthropic_api_key: Anthropic API key (or reads from ANTHROPIC_API_KEY env var)
+    OPTIMIZED APPROACH:
+    1. LLM analyzes headers + sample rows (1 API call)
+    2. Python applies mapping to all rows (instant)
 
-    Returns:
-        List of standardized trip dictionaries
+    For 1800 rows: ~10 seconds total (vs. 30-60 minutes with old approach)
     """
 
     # Get API key
@@ -133,81 +337,74 @@ def parse_excel_with_smart_llm(
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY environment variable not set")
 
-    # Initialize Claude client
     client = anthropic.Anthropic(api_key=api_key)
 
     print("=" * 80)
-    print("SMART LLM PARSER - Works with ANY Excel format")
+    print("SMART LLM PARSER - SCHEMA DETECTION MODE")
     print("=" * 80)
     print()
 
-    # Read Excel file (generic, no column assumptions)
+    # Read Excel file
     print(f"Reading: {excel_file}")
     df = pd.read_excel(excel_file, dtype=str, na_filter=True)
 
-    # Replace NaN with None for JSON serialization
-    df = df.where(pd.notna(df), None)
-
     total_rows = len(df)
+    columns = list(df.columns)
+
     print(f"Found {total_rows} rows")
-    print(f"Columns: {list(df.columns)}")
+    print(f"Columns: {columns}")
     print()
-    print("Processing rows with Claude AI...")
+
+    # Get sample rows for LLM analysis
+    sample_rows = df.head(5).to_dict('records')
+
+    print("Step 1: Analyzing schema with LLM (1 API call)...")
     print("-" * 80)
 
-    trips = []
-    failed_rows = []
+    # Get column mapping from LLM
+    mapping = get_column_mapping_from_llm(columns, sample_rows, client)
 
-    # Process each row with LLM
-    for idx, row in df.iterrows():
-        row_dict = row.to_dict()
-        row_number = idx + 2  # Excel row number (1-indexed, +1 for header)
+    if not mapping:
+        print("ERROR: Could not determine column mapping")
+        return []
 
-        print(f"\nRow {row_number}:")
+    print("Column mapping detected:")
+    for field, col in mapping.items():
+        if col and col != "null":
+            print(f"  {field} <- '{col}'")
+    print()
 
-        # Extract trip data with LLM
-        trip = extract_trip_with_llm(row_dict, row_number, client)
+    print(f"Step 2: Applying mapping to all {total_rows} rows...")
+    print("-" * 80)
 
-        if trip:
-            trips.append(trip)
-            print(f"  [OK] Extracted: {trip['passenger_name']}")
-        else:
-            failed_rows.append(row_number)
-            print(f"  [FAIL] Failed to extract")
+    # Apply mapping to all rows (fast!)
+    trips = apply_mapping_to_dataframe(df, mapping)
 
-    # Summary
     print()
     print("=" * 80)
     print("PARSING COMPLETE")
     print("=" * 80)
     print(f"Total rows: {total_rows}")
-    print(f"Successfully parsed: {len(trips)}")
-    print(f"Failed: {len(failed_rows)}")
-
-    if failed_rows:
-        print(f"Failed row numbers: {failed_rows}")
-
+    print(f"LLM API calls: 1")
+    print(f"Successfully parsed: {len(trips)} trips")
+    print(f"Failed/skipped: {total_rows - len(trips)}")
     print()
 
     return trips
 
 
 def parse_and_save(excel_file: str, output_file: str = "smart_parsed_output.json"):
-    """
-    Parse Excel and save to JSON file.
-    """
+    """Parse Excel and save to JSON file."""
     trips = parse_excel_with_smart_llm(excel_file)
 
     with open(output_file, 'w') as f:
         json.dump(trips, f, indent=2)
 
     print(f"Saved {len(trips)} trips to: {output_file}")
-
     return trips
 
 
 if __name__ == "__main__":
-    # Example usage
     excel_file = r"C:\Users\erich\Downloads\ppol_example_small_clinic_messy.xlsx"
 
     if os.path.exists(excel_file):
