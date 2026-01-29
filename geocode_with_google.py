@@ -1,25 +1,79 @@
 """
-Geocode addresses using Google Maps API
+Geocode addresses using Google Maps API - OPTIMIZED with parallel processing
 
 This adds lat/lon coordinates to your enhanced trip data.
+
+OPTIMIZED: Uses ThreadPoolExecutor for parallel geocoding
+- 1800 trips = 3600 addresses
+- Sequential: ~3-6 minutes
+- Parallel (10 workers): ~30-60 seconds
 """
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Tuple, Optional
+
+
+# Configuration
+MAX_GEOCODE_WORKERS = 10  # Parallel geocoding requests
+
+
+def geocode_single_address(gmaps, address: str) -> Tuple[Optional[float], Optional[float]]:
+    """Geocode a single address, return (lat, lon) or (None, None)."""
+    if not address:
+        return None, None
+
+    try:
+        result = gmaps.geocode(address)
+        if result:
+            location = result[0]['geometry']['location']
+            return location['lat'], location['lng']
+        return None, None
+    except Exception:
+        return None, None
+
+
+def geocode_trip(args: Tuple) -> Tuple[int, Dict]:
+    """Geocode a single trip (both pickup and destination). Used for parallel execution."""
+    idx, trip, gmaps = args
+
+    # Geocode pickup
+    pickup_address = trip.get('source')
+    if pickup_address:
+        lat, lng = geocode_single_address(gmaps, pickup_address)
+        trip['pickup_latitude'] = lat
+        trip['pickup_longitude'] = lng
+
+    # Geocode destination
+    destination = trip.get('destination')
+    if destination:
+        lat, lng = geocode_single_address(gmaps, destination)
+        trip['dropoff_latitude'] = lat
+        trip['dropoff_longitude'] = lng
+
+    return idx, trip
 
 
 def geocode_trips_google(
-    input_file='llm_enhanced_output.json',
-    output_file='final_output_with_coords.json',
-    api_key=None
-):
+    input_file: str = 'llm_enhanced_output.json',
+    output_file: str = 'final_output_with_coords.json',
+    api_key: str = None,
+    trips_list: List[Dict] = None,
+    max_workers: int = MAX_GEOCODE_WORKERS
+) -> List[Dict]:
     """
-    Add GPS coordinates using Google Maps
+    Add GPS coordinates using Google Maps - PARALLEL PROCESSING
 
     Args:
-        input_file: JSON file with LLM-enhanced addresses
+        input_file: JSON file with LLM-enhanced addresses (ignored if trips_list provided)
         output_file: Where to save with coordinates
         api_key: Your Google Maps API key
+        trips_list: Optional - pass trips directly instead of loading from file
+        max_workers: Number of parallel geocoding threads (default 10)
+
+    Returns:
+        List of trips with coordinates added
     """
 
     # Import Google Maps library
@@ -28,7 +82,7 @@ def geocode_trips_google(
     except ImportError:
         print("ERROR: Install googlemaps first:")
         print("  pip install googlemaps")
-        return
+        return []
 
     # Get API key
     if not api_key:
@@ -42,91 +96,98 @@ def geocode_trips_google(
         print("Then either:")
         print("  1. Pass as parameter: geocode_trips_google(api_key='your-key')")
         print("  2. Set environment: $env:GOOGLE_MAPS_API_KEY='your-key'")
-        return
+        return []
 
     print("=" * 80)
-    print("GEOCODING WITH GOOGLE MAPS")
+    print("GEOCODING WITH GOOGLE MAPS - PARALLEL PROCESSING")
     print("=" * 80)
     print()
 
     # Initialize Google Maps client
     gmaps = googlemaps.Client(key=api_key)
 
-    # Load trips
-    with open(input_file, 'r') as f:
-        trips = json.load(f)
+    # Load trips from file or use provided list
+    if trips_list is not None:
+        trips = trips_list
+    else:
+        with open(input_file, 'r') as f:
+            trips = json.load(f)
 
-    print(f"Loaded {len(trips)} trips")
+    total_trips = len(trips)
+    print(f"Loaded {total_trips} trips")
+    print(f"Using {max_workers} parallel workers")
+    print(f"Estimated addresses: {total_trips * 2}")
     print()
+    print("Geocoding...")
+    print("-" * 80)
 
+    # Prepare arguments for parallel execution
+    geocode_args = [(idx, trip.copy(), gmaps) for idx, trip in enumerate(trips)]
+
+    # Process in parallel
+    results = {}
     geocoded_count = 0
     failed_count = 0
 
-    for i, trip in enumerate(trips, 1):
-        print(f"Trip {i}/{len(trips)}: {trip['passenger_name']}")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_idx = {
+            executor.submit(geocode_trip, args): args[0]
+            for args in geocode_args
+        }
 
-        # Geocode pickup
-        pickup_address = trip.get('source')
-        if pickup_address:
-            print(f"  Pickup: {pickup_address}")
+        completed = 0
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
             try:
-                result = gmaps.geocode(pickup_address)
-                if result:
-                    location = result[0]['geometry']['location']
-                    trip['pickup_latitude'] = location['lat']
-                    trip['pickup_longitude'] = location['lng']
-                    print(f"    → {location['lat']:.6f}, {location['lng']:.6f}")
+                result_idx, geocoded_trip = future.result()
+                results[result_idx] = geocoded_trip
+
+                # Count successes/failures
+                if geocoded_trip.get('pickup_latitude'):
                     geocoded_count += 1
                 else:
-                    print(f"    → No results found")
                     failed_count += 1
-            except Exception as e:
-                print(f"    → Error: {e}")
-                failed_count += 1
-
-        # Geocode destination
-        destination = trip.get('destination')
-        if destination:
-            print(f"  Destination: {destination}")
-            try:
-                result = gmaps.geocode(destination)
-                if result:
-                    location = result[0]['geometry']['location']
-                    trip['dropoff_latitude'] = location['lat']
-                    trip['dropoff_longitude'] = location['lng']
-                    print(f"    → {location['lat']:.6f}, {location['lng']:.6f}")
+                if geocoded_trip.get('dropoff_latitude'):
                     geocoded_count += 1
                 else:
-                    print(f"    → No results found")
                     failed_count += 1
-            except Exception as e:
-                print(f"    → Error: {e}")
-                failed_count += 1
 
-        print()
+                completed += 1
+                if completed % 50 == 0 or completed == total_trips:
+                    print(f"  Progress: {completed}/{total_trips} trips geocoded")
+
+            except Exception as e:
+                print(f"  Trip {idx} failed: {e}")
+                results[idx] = trips[idx]  # Keep original
+                failed_count += 2
+                completed += 1
+
+    # Reconstruct trips in original order
+    geocoded_trips = [results[i] for i in range(total_trips)]
 
     # Save result
     with open(output_file, 'w') as f:
-        json.dump(trips, f, indent=2)
+        json.dump(geocoded_trips, f, indent=2)
 
+    print()
     print("=" * 80)
     print("GEOCODING COMPLETE")
     print("=" * 80)
-    print(f"Total addresses: {len(trips) * 2}")
+    print(f"Total addresses: {total_trips * 2}")
     print(f"Successfully geocoded: {geocoded_count}")
-    print(f"Failed: {failed_count}")
+    print(f"Failed/missing: {failed_count}")
     print()
     print(f"[OK] Saved to: {output_file}")
     print("=" * 80)
 
     # Show sample
-    if trips:
+    if geocoded_trips:
         print()
         print("SAMPLE OUTPUT (with coordinates):")
         print("=" * 80)
-        print(json.dumps(trips[0], indent=2))
+        print(json.dumps(geocoded_trips[0], indent=2))
 
-    return trips
+    return geocoded_trips
 
 
 def show_google_maps_setup():
