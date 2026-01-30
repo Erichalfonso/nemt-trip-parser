@@ -285,10 +285,15 @@ def apply_mapping_to_dataframe(df: pd.DataFrame, mapping: Dict) -> List[Dict]:
         return_raw = get_val('return_trip')
         return_needed, return_type = parse_return_trip(return_raw)
 
-        # Language
-        language = get_val('language')
-        if language and 'spanish' in language.lower():
-            language = 'es'
+        # Language detection
+        language_raw = get_val('language')
+        if language_raw:
+            lang_lower = language_raw.lower()
+            # Check for Spanish indicators
+            if any(x in lang_lower for x in ['spanish', 'espanol', 'español', 'es', 'spa']):
+                language = 'es'
+            else:
+                language = 'en'
         else:
             language = 'en'
 
