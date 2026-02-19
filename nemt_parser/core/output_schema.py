@@ -23,7 +23,7 @@ class TripOutput(BaseModel):
     passenger_language: str = Field(default="en", description="Passenger language code")
 
     # Service Type
-    service_type_id: int = Field(..., description="Service type ID (1=ambulatory, 2=wheelchair, 3=stretcher)")
+    service_type_id: int = Field(..., description="Service type ID (1=ambulatory, 7=wheelchair, 9=stretcher)")
 
     # Pickup Location
     source: str = Field(..., description="Full pickup address")
@@ -94,9 +94,9 @@ def convert_to_output_format(trip) -> TripOutput:
 
     # Determine service_type_id from wheelchair/stretcher/ambulatory
     if trip.stretcher:
-        service_type_id = 3  # Stretcher
+        service_type_id = 9  # Stretcher
     elif trip.wheelchair:
-        service_type_id = 2  # Wheelchair
+        service_type_id = 7  # Wheelchair
     else:
         service_type_id = 1  # Ambulatory
 
