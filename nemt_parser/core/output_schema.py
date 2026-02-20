@@ -54,7 +54,7 @@ class TripOutput(BaseModel):
                 "country_code": "+1",
                 "passenger_phone": "1234567890",
                 "passenger_language": "en",
-                "service_type_id": 2,
+                "service_type_id": 7,
                 "source": "123 Main Street, City A",
                 "pickup_latitude": 40.712776,
                 "pickup_longitude": -74.005974,

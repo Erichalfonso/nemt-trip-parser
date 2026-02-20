@@ -198,16 +198,16 @@ def clean_phone(value) -> Optional[str]:
 
 
 def determine_service_type(value) -> int:
-    """Determine service type: 1=ambulatory, 2=wheelchair, 3=stretcher"""
+    """Determine service type: 1=ambulatory, 7=wheelchair, 9=stretcher"""
     if not value or pd.isna(value):
         return 1
 
     value_lower = str(value).lower()
 
     if any(w in value_lower for w in ['wheelchair', 'wc', 'w/c']):
-        return 2
+        return 7
     elif any(w in value_lower for w in ['stretcher', 'gurney', 'strech']):
-        return 3
+        return 9
     else:
         return 1
 
