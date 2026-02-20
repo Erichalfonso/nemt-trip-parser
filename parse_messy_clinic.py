@@ -130,9 +130,9 @@ def determine_service_type(notes):
     notes_lower = str(notes).lower()
 
     if 'wheelchair' in notes_lower or 'wc' in notes_lower:
-        return 2
+        return 7
     elif 'stretcher' in notes_lower or 'gurney' in notes_lower:
-        return 3
+        return 9
     else:
         return 1
 
@@ -283,7 +283,7 @@ def parse_messy_excel(excel_file=None):
         print(f"   To: {trip['destination']}")
         print(f"   Pickup: {trip['pickup_date_time']}")
         print(f"   Appointment: {trip['appointment_time']}")
-        print(f"   Service: {trip['service_type_id']} (1=ambulatory, 2=wheelchair, 3=stretcher)")
+        print(f"   Service: {trip['service_type_id']} (1=ambulatory, 7=wheelchair, 9=stretcher)")
         print(f"   Return: {trip['return_trip_needed']} ({trip['return_trip_type']})")
         print(f"   Notes: {trip['special_note']}")
 
