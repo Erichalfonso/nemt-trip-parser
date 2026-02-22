@@ -5,7 +5,7 @@ Handles converting raw Excel data into validated Trip objects,
 with robust error handling and data cleaning.
 """
 
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 from typing import Any, Optional
 import re
 from pydantic import ValidationError
@@ -35,13 +35,13 @@ class DataValidator:
         if value is None or value == "":
             return None
 
+        # datetime object (must check before date since datetime is subclass of date)
+        if isinstance(value, datetime):
+            return value.date()
+
         # Already a date object
         if isinstance(value, date):
             return value
-
-        # datetime object
-        if isinstance(value, datetime):
-            return value.date()
 
         # Try parsing string formats
         if isinstance(value, str):
@@ -58,7 +58,7 @@ class DataValidator:
         try:
             excel_date = float(value)
             # Excel dates start from 1900-01-01
-            return datetime(1899, 12, 30) + datetime.timedelta(days=excel_date)
+            return (datetime(1899, 12, 30) + timedelta(days=int(excel_date))).date()
         except (ValueError, TypeError):
             pass
 
