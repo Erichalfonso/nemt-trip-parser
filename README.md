@@ -208,10 +208,7 @@ Set these environment variables (see `.env.example`):
 | [API_DOCUMENTATION.md](API_DOCUMENTATION.md) | Developers | Full endpoint reference with schemas and examples |
 | [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) | Website team | Code examples for Python, Node.js, PHP integration |
 | [GETTING_STARTED.md](GETTING_STARTED.md) | New developers | Local setup and first-run instructions |
-| [YOUR_JSON_FORMAT.md](YOUR_JSON_FORMAT.md) | Backend team | Detailed field mapping from Excel to JSON |
-| [TEAM_HANDOFF.md](TEAM_HANDOFF.md) | Operations | Deployment, configuration, and handoff reference |
 | [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) | DevOps | Railway-specific deployment guide |
-| [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) | Stakeholders | Architecture overview and project scope |
 
 ---
 
