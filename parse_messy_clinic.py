@@ -160,7 +160,8 @@ def parse_messy_excel(excel_file=None):
     """Parse the messy clinic Excel file"""
 
     if excel_file is None:
-        excel_file = r"C:\Users\erich\Downloads\ppol_example_small_clinic_messy.xlsx"
+        import sys
+        excel_file = sys.argv[1] if len(sys.argv) > 1 else "sample_data/clinic_a_trips.xlsx"
 
     print("=" * 80)
     print("PARSING MESSY CLINIC FORMAT")

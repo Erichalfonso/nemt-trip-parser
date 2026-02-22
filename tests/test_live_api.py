@@ -4,11 +4,12 @@ Test the live Railway API with a real Excel upload
 
 import requests
 import json
+import os
 
 # Your LIVE API URL
-API_URL = "https://web-production-c09c8.up.railway.app/api/upload"
-API_KEY = "REDACTED_API_KEY"
-EXCEL_FILE = r"C:\Users\erich\Downloads\ppol_example_small_clinic_messy.xlsx"
+API_URL = os.getenv("API_URL", "https://web-production-c09c8.up.railway.app/api/upload")
+API_KEY = os.getenv("API_KEY", "YOUR_API_KEY_HERE")
+EXCEL_FILE = os.getenv("TEST_EXCEL_FILE", "sample_data/clinic_a_trips.xlsx")
 
 print("="*80)
 print("TESTING LIVE RAILWAY API")
@@ -40,7 +41,7 @@ try:
     if response.status_code == 200:
         result = response.json()
 
-        print(f"✅ SUCCESS!")
+        print(f"[SUCCESS!]")
         print(f"   Total trips parsed: {result['total_trips']}")
         print(f"   Processing time: {result['processing_time_seconds']}s")
         print()
@@ -57,8 +58,8 @@ try:
         print(json.dumps(result['features_used'], indent=2))
 
     else:
-        print(f"❌ ERROR: {response.status_code}")
+        print(f"[ERROR]: {response.status_code}")
         print(response.text)
 
 except Exception as e:
-    print(f"❌ EXCEPTION: {e}")
+    print(f"[EXCEPTION]: {e}")

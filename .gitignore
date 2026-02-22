@@ -41,9 +41,9 @@ config/secrets.py
 *_api_key.txt
 
 # Output Files
-llm_enhanced_output.json
-messy_clinic_output.json
-final_output_with_coords.json
+*_output*.json
+*_with_coords.json
+*_geocoded.json
 
 # Logs
 *.log
@@ -53,6 +53,7 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+nul
 
 # Testing
 .pytest_cache/
@@ -67,5 +68,9 @@ htmlcov/
 *.db
 *.sqlite3
 
-# Sample/Test Excel files (remove if you want to commit them)
+# Temp uploads
+temp_uploads/
+
+# Sample/Test Excel files
 ppol_example_small_clinic_messy.xlsx
+test_service_types.xlsx

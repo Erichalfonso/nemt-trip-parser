@@ -12,8 +12,8 @@ from pathlib import Path
 
 
 # API Configuration
-API_URL = "https://web-production-c09c8.up.railway.app/api/upload"
-API_KEY = "REDACTED_API_KEY"
+API_URL = os.getenv("API_URL", "https://web-production-c09c8.up.railway.app/api/upload")
+API_KEY = os.getenv("API_KEY", "YOUR_API_KEY_HERE")
 
 
 def validate_file(file_path):

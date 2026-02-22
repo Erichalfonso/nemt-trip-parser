@@ -410,7 +410,8 @@ def parse_and_save(excel_file: str, output_file: str = "smart_parsed_output.json
 
 
 if __name__ == "__main__":
-    excel_file = r"C:\Users\erich\Downloads\ppol_example_small_clinic_messy.xlsx"
+    import sys
+    excel_file = sys.argv[1] if len(sys.argv) > 1 else "sample_data/clinic_a_trips.xlsx"
 
     if os.path.exists(excel_file):
         trips = parse_and_save(excel_file)
@@ -423,5 +424,6 @@ if __name__ == "__main__":
     else:
         print(f"File not found: {excel_file}")
         print("\nUsage:")
+        print("  python parse_smart_llm.py <excel_file>")
         print("  from parse_smart_llm import parse_excel_with_smart_llm")
         print("  trips = parse_excel_with_smart_llm('your_file.xlsx')")

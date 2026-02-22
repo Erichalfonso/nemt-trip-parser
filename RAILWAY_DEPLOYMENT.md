@@ -1,83 +1,70 @@
 # Railway Deployment Guide
 
-Deploy your NEMT Parser API to Railway in 5 minutes! 🚂
+Deploy the NEMT Trip Parser API to Railway.
 
 ---
 
-## 🚀 Quick Deployment Steps
+## Deployment Steps
 
-### **1. Sign Up for Railway**
+### 1. Sign Up
 
-Go to: https://railway.app/
+Go to [railway.app](https://railway.app/) and log in with GitHub.
 
-- Click "Login with GitHub"
-- Authorize Railway to access your GitHub
+### 2. Create Project
 
----
+1. Click **New Project**
+2. Select **Deploy from GitHub repo**
+3. Choose your `nemt-trip-parser` repository
+4. Railway auto-detects Python and begins building
 
-### **2. Create New Project**
+### 3. Set Environment Variables
 
-1. Click **"New Project"**
-2. Select **"Deploy from GitHub repo"**
-3. Choose **`Erichalfonso/nemt-trip-parser`**
-4. Railway will auto-detect Python and start building!
-
----
-
-### **3. Add Environment Variables**
-
-After deployment starts, click on your service, then go to **"Variables"** tab:
-
-Add these variables:
+In the Railway dashboard, go to your service > **Variables** tab. Add:
 
 ```
-GOOGLE_MAPS_API_KEY=AIzaSyDL_J0QL4bIEQGR125JGomiiz376TVhQz0
-PARSER_API_KEY=REDACTED_API_KEY
-ANTHROPIC_API_KEY=your-claude-key-here (optional)
+API_KEY=<your-secure-api-key>
+GOOGLE_MAPS_API_KEY=<your-google-maps-key>
+ANTHROPIC_API_KEY=<your-claude-key>
 USE_GEOCODING=true
 GEOCODING_PROVIDER=google
 ```
 
-Click **"Add"** after each variable.
-
----
-
-### **4. Wait for Deployment**
+### 4. Wait for Build
 
 Railway will:
 1. Install dependencies from `requirements.txt`
-2. Build your app
-3. Start it using `Procfile`
+2. Build the app
+3. Start it using the `Procfile`
 4. Assign a public URL
 
-**Takes ~2-3 minutes**
+Build time is approximately 2-3 minutes.
 
----
+### 5. Get Your URL
 
-### **5. Get Your API URL**
-
-Once deployed, Railway gives you a URL like:
+Once deployed, Railway provides a URL like:
 
 ```
 https://nemt-parser-production.up.railway.app
 ```
 
-Your API endpoint is:
+Your API endpoint will be:
+
 ```
 https://nemt-parser-production.up.railway.app/api/upload
 ```
 
 ---
 
-## ✅ Test Your Deployment
+## Verify Deployment
 
-### **Health Check:**
+### Health check
 
 ```bash
 curl https://your-app.up.railway.app/health
 ```
 
-Should return:
+Expected response:
+
 ```json
 {
   "status": "ok",
@@ -86,92 +73,72 @@ Should return:
 }
 ```
 
-### **Test Upload:**
+### Test upload
 
 ```bash
 curl -X POST https://your-app.up.railway.app/api/upload \
-  -H "X-API-Key: REDACTED_API_KEY" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
   -F "file=@test_file.xlsx"
 ```
 
 ---
 
-## 🔄 Auto-Deploy on Git Push
+## Auto-Deploy
 
-**Railway automatically redeploys when you push to GitHub!**
+Railway automatically redeploys when you push to GitHub:
 
 ```bash
-# Make changes
 git add .
 git commit -m "Update parser"
 git push origin main
-
-# Railway automatically:
-# - Detects the push
-# - Rebuilds the app
-# - Deploys new version
-# - Zero downtime!
+# Railway detects the push, rebuilds, and deploys with zero downtime
 ```
 
 ---
 
-## 📊 Monitoring
+## Monitoring
 
-### **View Logs:**
+### Logs
 
-1. Go to Railway dashboard
+1. Open the Railway dashboard
 2. Click your service
-3. Click **"Deployments"** tab
-4. Click latest deployment
-5. Click **"View Logs"**
+3. Go to **Deployments** tab
+4. Click the latest deployment
+5. Click **View Logs**
 
-### **Metrics:**
+### Metrics
 
-Railway shows:
-- CPU usage
-- Memory usage
-- Request count
-- Response times
+Railway provides CPU usage, memory usage, request count, and response time metrics in the dashboard.
 
 ---
 
-## 💰 Pricing
+## Pricing
 
-### **Hobby Plan ($5/month):**
-- Unlimited hours
-- 8GB RAM
-- 8 vCPU
-- Custom domains
-- **Perfect for this project!**
+**Hobby Plan ($5/month):** Unlimited hours, 8 GB RAM, 8 vCPU, custom domains. Suitable for most workloads.
 
-### **Free Trial:**
-- $5 credit (lasts ~20 days if app runs 24/7)
-- Great for testing
+**Free Trial:** $5 credit, sufficient for approximately 20 days of continuous operation.
 
 ---
 
-## ⚙️ Advanced Configuration
+## Advanced Configuration
 
-### **Custom Domain:**
+### Custom domain
 
-1. Go to **"Settings"** → **"Domains"**
-2. Click **"Generate Domain"** or **"Custom Domain"**
-3. Add your domain: `parser.yourcompany.com`
-4. Update DNS (Railway gives you instructions)
+1. Go to **Settings** > **Domains**
+2. Click **Generate Domain** or **Custom Domain**
+3. Follow the DNS instructions Railway provides
 
-### **Increase Timeout:**
+### Increase timeout
 
-If parsing large files takes >60 seconds, update `Procfile`:
+For large files that take over 60 seconds, update the `Procfile`:
 
 ```
 web: gunicorn --workers 4 --timeout 300 --bind 0.0.0.0:$PORT api_server:app
 ```
 
-(300 = 5 minutes)
+### Increase workers
 
-### **Add More Workers:**
-
-For higher traffic, increase workers in `Procfile`:
+For higher traffic:
 
 ```
 web: gunicorn --workers 8 --timeout 120 --bind 0.0.0.0:$PORT api_server:app
@@ -179,105 +146,45 @@ web: gunicorn --workers 8 --timeout 120 --bind 0.0.0.0:$PORT api_server:app
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
-### **App won't start:**
+**App won't start:**
+- Check logs in the Railway dashboard
+- Verify all environment variables are set
+- Confirm `requirements.txt` includes all dependencies
 
-1. Check logs in Railway dashboard
-2. Verify all environment variables are set
-3. Check `requirements.txt` has all dependencies
-
-### **"Application failed to respond":**
-
+**"Application failed to respond":**
 - Increase timeout in `Procfile`
 - Check logs for errors
 
-### **Geocoding not working:**
-
+**Geocoding not working:**
 - Verify `GOOGLE_MAPS_API_KEY` is set
-- Check Google Cloud Console: Geocoding API enabled + billing enabled
+- Confirm the Geocoding API is enabled in Google Cloud Console with billing active
 
 ---
 
-## 📱 Mobile App / Direct Access
+## Scaling
 
-If you want mobile apps or frontend to access the parser directly (not through your website):
-
-### **Enable CORS:**
-
-Already enabled in `api_server.py`:
-```python
-CORS(app)  # Allows requests from any origin
-```
-
-### **Restrict to specific domains (optional):**
-
-```python
-CORS(app, origins=["https://yourwebsite.com"])
-```
-
----
-
-## 🔐 Security Checklist
-
-- [ ] API key set in environment variables (not in code)
-- [ ] Google Maps API key restricted to Geocoding API only
-- [ ] Different API keys for production vs development
-- [ ] HTTPS enforced (Railway does this automatically)
-- [ ] Monitor logs for suspicious activity
-
----
-
-## 📈 Scaling
-
-### **Current Setup (Good for 0-10,000 trips/month):**
+**Current setup (suitable for up to 10,000 trips/month):**
 - 4 Gunicorn workers
-- Can handle ~100 requests/second
+- Handles approximately 100 requests/second
 - Auto-restarts on crashes
 
-### **If you need more (>10,000 trips/month):**
-
-1. **Increase workers:**
-   ```
-   gunicorn --workers 16 ...
-   ```
-
-2. **Upgrade Railway plan:**
-   - Pro plan: More CPU/RAM
-
-3. **Add caching:**
-   - Add PostgreSQL (free on Railway)
-   - Cache geocoding results
+**Higher volume (10,000+ trips/month):**
+1. Increase workers: `gunicorn --workers 16 ...`
+2. Upgrade to Railway Pro plan for more CPU/RAM
+3. Add geocoding result caching
 
 ---
 
-## 🎯 Post-Deployment Checklist
+## Security Checklist
 
-- [ ] API deployed to Railway
-- [ ] Health check endpoint works
-- [ ] Test upload with sample file works
-- [ ] Environment variables configured
-- [ ] Gave API URL to website team
-- [ ] Updated `INTEGRATION_GUIDE.md` with real URL
-- [ ] Monitoring set up
-- [ ] Logs accessible
+- [ ] API key set via environment variables (not in code)
+- [ ] Google Maps API key restricted to Geocoding API only
+- [ ] Separate API keys for production and development
+- [ ] HTTPS enforced (Railway handles this automatically)
+- [ ] Monitor logs for unusual activity
 
 ---
 
-## 📞 Support
-
-**Railway Issues:**
-- Railway Docs: https://docs.railway.app/
-- Railway Discord: https://discord.gg/railway
-
-**Parser Issues:**
-- Check GitHub repo
-- Contact Erich
-
----
-
-**You're live on Railway! 🎉**
-
-Your API URL: `https://your-app.up.railway.app/api/upload`
-
-Give this URL to your website team and they can start integrating!
+Back to [README](README.md).

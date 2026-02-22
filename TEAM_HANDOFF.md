@@ -1,73 +1,72 @@
-# NEMT Trip Parser - Team Handoff Documentation
+# Team Handoff
 
-## 🎉 **Project Complete!**
-
-The NEMT Trip Parser API is ready for integration with your website.
+Deployment, configuration, and operational reference for the NEMT Trip Parser.
 
 ---
 
-## 📍 **Repository**
+## Repository
 
 ```
 https://github.com/Erichalfonso/nemt-trip-parser
 ```
 
-Clone it:
 ```bash
 git clone https://github.com/Erichalfonso/nemt-trip-parser.git
 ```
 
 ---
 
-## 🚀 **Quick Start**
+## Quick Start
 
-### **1. Install Dependencies**
+### 1. Install dependencies
 
 ```bash
 cd nemt-trip-parser
 pip install -r requirements.txt
 ```
 
-### **2. Configure Environment**
+### 2. Configure environment
 
-Create `.env` file (copy from `.env.example`):
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your API keys:
+Edit `.env`:
+
 ```env
-GOOGLE_MAPS_API_KEY=your-google-maps-key-here
-ANTHROPIC_API_KEY=your-claude-key-here
-PARSER_API_KEY=your-secret-authentication-key
+API_KEY=your-secure-authentication-key
+GOOGLE_MAPS_API_KEY=your-google-maps-key
+ANTHROPIC_API_KEY=your-claude-key
 
 USE_LLM=false
 USE_GEOCODING=true
 GEOCODING_PROVIDER=google
 ```
 
-### **3. Start the Server**
+### 3. Start the server
 
 **Development:**
+
 ```bash
 python api_server.py
 ```
 
-**Production (recommended):**
+**Production:**
+
 ```bash
 gunicorn -w 4 -b 0.0.0.0:5001 api_server:app
 ```
 
-Server runs on: `http://localhost:5001`
+Server runs on `http://localhost:5001`.
 
 ---
 
-## 📡 **API Endpoints**
+## API Endpoints
 
-### **GET /health**
-Health check endpoint (no authentication required)
+### GET /health
 
-**Response:**
+Health check (no authentication required).
+
 ```json
 {
   "status": "ok",
@@ -81,23 +80,14 @@ Health check endpoint (no authentication required)
 }
 ```
 
----
+### POST /api/upload
 
-### **POST /api/upload**
-Upload Excel file and get standardized JSON
+Upload Excel file and receive standardized JSON. Requires `X-API-Key` header.
 
-**Headers:**
-```
-X-API-Key: your-secret-api-key
-```
+**Request:** `multipart/form-data` with fields `file`, `clinic_id`, `use_llm`, `use_geocoding`.
 
-**Request (multipart/form-data):**
-- `file`: Excel file (.xlsx or .xls)
-- `clinic_id`: Clinic identifier (string, optional)
-- `use_llm`: Enable LLM enhancement ("true" or "false", optional)
-- `use_geocoding`: Enable geocoding ("true" or "false", optional)
+**Response:**
 
-**Response (Success):**
 ```json
 {
   "success": true,
@@ -132,52 +122,22 @@ X-API-Key: your-secret-api-key
 }
 ```
 
-**Response (Error):**
-```json
-{
-  "success": false,
-  "error": "Invalid file type. Allowed: xlsx, xls",
-  "error_type": "ValidationError"
-}
-```
+### GET /api/status
+
+Returns server configuration. Requires `X-API-Key` header.
 
 ---
 
-### **GET /api/status**
-Get API configuration (requires authentication)
+## Integration Examples
 
-**Headers:**
-```
-X-API-Key: your-secret-api-key
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "configuration": {
-    "llm_available": true,
-    "llm_enabled_by_default": false,
-    "geocoding_enabled_by_default": true,
-    "geocoding_provider": "google",
-    "google_maps_available": true,
-    "max_file_size_mb": 16.0,
-    "allowed_extensions": ["xlsx", "xls"]
-  }
-}
-```
-
----
-
-## 💻 **Integration Examples**
-
-### **Python (requests)**
+### Python
 
 ```python
 import requests
+import os
 
 url = "http://your-server:5001/api/upload"
-headers = {"X-API-Key": "your-secret-key"}
+headers = {"X-API-Key": os.getenv("API_KEY")}
 
 files = {"file": open("clinic_data.xlsx", "rb")}
 data = {
@@ -190,12 +150,10 @@ response = requests.post(url, headers=headers, files=files, data=data)
 if response.status_code == 200:
     result = response.json()
     trips = result["trips"]
-    print(f"Parsed {len(trips)} trips successfully")
-else:
-    print(f"Error: {response.json()}")
+    print(f"Parsed {len(trips)} trips")
 ```
 
-### **JavaScript (fetch)**
+### JavaScript
 
 ```javascript
 const formData = new FormData();
@@ -205,27 +163,22 @@ formData.append('use_geocoding', 'true');
 
 fetch('http://your-server:5001/api/upload', {
     method: 'POST',
-    headers: {
-        'X-API-Key': 'your-secret-key'
-    },
+    headers: { 'X-API-Key': apiKey },
     body: formData
 })
 .then(res => res.json())
 .then(data => {
     if (data.success) {
         console.log(`Parsed ${data.total_trips} trips`);
-        console.log(data.trips);
-    } else {
-        console.error('Error:', data.error);
     }
 });
 ```
 
-### **cURL**
+### cURL
 
 ```bash
 curl -X POST http://localhost:5001/api/upload \
-  -H "X-API-Key: your-secret-key" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
   -F "file=@clinic_data.xlsx" \
   -F "clinic_id=clinic_123" \
   -F "use_geocoding=true"
@@ -233,9 +186,7 @@ curl -X POST http://localhost:5001/api/upload \
 
 ---
 
-## 🗂️ **JSON Output Schema**
-
-Every trip in the `trips` array has these fields:
+## JSON Output Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -243,174 +194,116 @@ Every trip in the `trips` array has these fields:
 | `country_code` | string | Phone country code (default: "+1") |
 | `passenger_phone` | string | Phone number (digits only) |
 | `passenger_language` | string | Language code ("en" or "es") |
-| `service_type_id` | integer | 1=ambulatory, 2=wheelchair, 3=stretcher |
+| `service_type_id` | integer | 1=ambulatory, 7=wheelchair, 9=stretcher |
 | `source` | string | Pickup address (full) |
-| `pickup_latitude` | float \| null | Pickup GPS latitude |
-| `pickup_longitude` | float \| null | Pickup GPS longitude |
+| `pickup_latitude` | float/null | Pickup GPS latitude |
+| `pickup_longitude` | float/null | Pickup GPS longitude |
 | `destination` | string | Dropoff address (full) |
-| `dropoff_latitude` | float \| null | Dropoff GPS latitude |
-| `dropoff_longitude` | float \| null | Dropoff GPS longitude |
+| `dropoff_latitude` | float/null | Dropoff GPS latitude |
+| `dropoff_longitude` | float/null | Dropoff GPS longitude |
 | `pickup_date_time` | string | Pickup datetime (YYYY-MM-DD HH:MM:SS) |
-| `eta_time` | string \| null | Estimated arrival time |
+| `eta_time` | string/null | Estimated arrival time |
 | `appointment_time` | string | Appointment datetime (YYYY-MM-DD HH:MM:SS) |
-| `special_note` | string \| null | Additional notes/requirements |
+| `special_note` | string/null | Additional notes/requirements |
 | `return_trip_needed` | string | "yes" or "no" |
-| `return_trip_type` | string \| null | "immediate" or "scheduled" |
+| `return_trip_type` | string/null | "immediate" or "scheduled" |
 
 ---
 
-## 🔐 **Security**
+## AI Features
 
-1. **API Key Authentication**: All endpoints (except `/health`) require `X-API-Key` header
-2. **File Size Limit**: 16MB maximum
-3. **File Type Validation**: Only `.xlsx` and `.xls` allowed
-4. **HTTPS**: Use HTTPS in production (configure via nginx/Apache)
+- **Smart Column Detection:** Claude analyzes headers + sample rows to auto-map any Excel format (1 LLM call per file).
+- **Address Cleaning:** Expands abbreviated addresses to full standardized form.
+- **Service Type Inference:** Detects wheelchair/stretcher/ambulatory from free-text notes.
+- **Multi-Format Parsing:** Handles diverse date, time, and phone formats.
+- **GPS Geocoding:** Google Maps or OpenStreetMap address-to-coordinate conversion.
 
-**Recommended production setup:**
+---
+
+## Security
+
+1. **API Key Authentication:** All endpoints except `/health` require the `X-API-Key` header.
+2. **File Validation:** Only `.xlsx` and `.xls` files accepted, 16 MB max.
+3. **HTTPS:** Use HTTPS in production (Railway handles this automatically).
+
+Recommended architecture:
+
 ```
-[Website] → HTTPS → [Nginx Reverse Proxy] → HTTP → [Gunicorn API Server]
+[Website] -- HTTPS --> [Reverse Proxy] -- HTTP --> [Gunicorn API Server]
 ```
 
 ---
 
-## 📊 **Features**
+## Deployment
 
-### **Smart Parsing**
-- Handles messy Excel formats automatically
-- Parses various date/time formats
-- Cleans phone numbers
-- Detects service type from notes
-- Extracts language preference
+### Railway (current)
 
-### **LLM Enhancement (Optional)**
-- Uses Claude AI to clean addresses
-- Infers full clinic addresses from partial names
-- Standardizes formatting
-- **Cost**: ~$0.00025 per trip
+See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md).
 
-### **Geocoding (Optional)**
-- **Google Maps**: Most accurate, requires API key, $0.005 per address
-- **OpenStreetMap**: Free, slightly less accurate, 1 req/sec limit
-
----
-
-## 🚀 **Deployment Options**
-
-### **Option 1: Same Server as Website**
-Run on same machine, different port
+### Same server as website
 
 ```bash
 gunicorn -w 4 -b 0.0.0.0:5001 api_server:app
 ```
 
-Your website calls: `http://localhost:5001/api/upload`
+Your website calls `http://localhost:5001/api/upload`.
 
-### **Option 2: Separate Server**
-Deploy to separate machine (AWS EC2, DigitalOcean, etc.)
+### Separate server
 
-```bash
-# On parser server
-gunicorn -w 4 -b 0.0.0.0:5001 api_server:app
-```
+Deploy to a dedicated machine and call `http://parser-server:5001/api/upload`.
 
-Your website calls: `http://parser-server-ip:5001/api/upload`
+### Docker
 
-### **Option 3: Docker**
 ```bash
 docker build -t nemt-parser .
 docker run -p 5001:5001 \
-  -e GOOGLE_MAPS_API_KEY=xxx \
-  -e PARSER_API_KEY=xxx \
+  -e API_KEY=your-key \
+  -e GOOGLE_MAPS_API_KEY=your-key \
   nemt-parser
 ```
 
-### **Option 4: Cloud Functions (AWS Lambda, etc.)**
-See `deployment/` folder for cloud-specific configurations
+---
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Missing X-API-Key header" | No auth header | Add `X-API-Key` to request headers |
+| "Invalid API key" | Wrong key | Check key matches `API_KEY` env var |
+| "Invalid file type" | Wrong extension | Use .xlsx or .xls only |
+| Geocoding returns null | Missing API key | Set `GOOGLE_MAPS_API_KEY` and enable Geocoding API |
+| LLM parsing fails | Missing API key | Set `ANTHROPIC_API_KEY` and verify at console.anthropic.com |
 
 ---
 
-## 🐛 **Troubleshooting**
-
-### **Error: "Missing X-API-Key header"**
-- Add `X-API-Key` to request headers
-- Verify key matches `.env` file
-
-### **Error: "Invalid file type"**
-- Only `.xlsx` and `.xls` files supported
-- Check file extension
-
-### **Geocoding not working**
-- Verify `GOOGLE_MAPS_API_KEY` is set in `.env`
-- Check Google Cloud Console: Geocoding API enabled + billing enabled
-- Try `use_geocoding=false` to test without geocoding
-
-### **LLM enhancement failing**
-- Verify `ANTHROPIC_API_KEY` is set in `.env`
-- Check API key is valid at https://console.anthropic.com/
-- Try `use_llm=false` to test without LLM
-
----
-
-## 💰 **Cost Estimation**
-
-**Monthly Usage: 1,000 trips**
+## Cost Estimate (1,000 trips/month)
 
 | Service | Cost |
 |---------|------|
-| Google Geocoding (2 addresses per trip) | $10 |
-| Claude LLM Enhancement (optional) | $0.25 |
-| Server hosting | $5-20 |
-| **Total** | **$15-30/month** |
-
-**Note**: Google provides $200/month free credit, so geocoding is often FREE!
+| Google Geocoding | $0 (within $200/month free tier) |
+| Claude LLM (optional) | ~$0.25 |
+| Railway hosting | $5 |
+| **Total** | **~$5.25/month** |
 
 ---
 
-##⚙️ **Configuration Options**
+## Configuration Reference
 
-Edit `.env` file:
-
-```env
-# Required
-GOOGLE_MAPS_API_KEY=your-key
-PARSER_API_KEY=your-secret-key
-
-# Optional
-ANTHROPIC_API_KEY=your-claude-key  # For LLM enhancement
-USE_LLM=false                       # Enable LLM by default
-USE_GEOCODING=true                  # Enable geocoding by default
-GEOCODING_PROVIDER=google           # "google" or "osm"
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `API_KEY` | Yes | Authentication key for requests |
+| `GOOGLE_MAPS_API_KEY` | No | Google Maps geocoding |
+| `ANTHROPIC_API_KEY` | No | Claude AI for smart parsing |
+| `USE_LLM` | No | Default LLM setting (default: false) |
+| `USE_GEOCODING` | No | Default geocoding setting (default: true) |
+| `GEOCODING_PROVIDER` | No | "google" or "osm" (default: google) |
 
 ---
 
-## 📞 **Support**
+## License
 
-**Developer**: Erich Alfonso
-**Repository**: https://github.com/Erichalfonso/nemt-trip-parser
-**Issues**: https://github.com/Erichalfonso/nemt-trip-parser/issues
+MIT License. See [LICENSE](LICENSE).
 
 ---
 
-## 📝 **License**
-
-MIT License - See LICENSE file
-
----
-
-## 🎯 **Quick Integration Checklist**
-
-- [ ] Clone repository
-- [ ] Install dependencies (`pip install -r requirements.txt`)
-- [ ] Configure `.env` with API keys
-- [ ] Start server (`python api_server.py` or `gunicorn`)
-- [ ] Test health endpoint (`curl http://localhost:5001/health`)
-- [ ] Test upload with sample file
-- [ ] Integrate into website backend
-- [ ] Deploy to production server
-- [ ] Configure HTTPS/reverse proxy
-- [ ] Monitor logs and errors
-
----
-
-**You're all set! The parser is ready for your team to integrate.** 🚀
+Back to [README](README.md).

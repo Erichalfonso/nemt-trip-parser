@@ -4,11 +4,12 @@ Test the API server with a real file upload
 
 import requests
 import json
+import os
 
 # Configuration
 API_URL = "http://localhost:5001/api/upload"
-API_KEY = "REDACTED_API_KEY"
-EXCEL_FILE = r"C:\Users\erich\Downloads\ppol_example_small_clinic_messy.xlsx"
+API_KEY = os.getenv("API_KEY", "YOUR_API_KEY_HERE")
+EXCEL_FILE = os.getenv("TEST_EXCEL_FILE", "sample_data/clinic_a_trips.xlsx")
 
 # Prepare the request
 headers = {

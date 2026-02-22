@@ -1,481 +1,206 @@
-# NEMT Trip Parser - API Documentation
+# API Documentation
 
-## Overview
+Complete reference for the NEMT Trip Parser API. For integration examples, see [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md).
 
-This API receives Excel files from clinics, intelligently parses them using AI-assisted column mapping, and returns standardized JSON trip data.
+## Base URL
 
-**Workflow:**
+**Production:** `https://web-production-c09c8.up.railway.app`
+
+**Local development:** `http://localhost:5001`
+
+## Authentication
+
+All endpoints except `/health` require an API key passed via the `X-API-Key` header:
+
 ```
-Clinic Excel → Your API → Parser (with AI mapping) → Standardized JSON
+X-API-Key: YOUR_API_KEY_HERE
 ```
+
+The API key is set via the `API_KEY` environment variable on the server.
 
 ---
 
-## Quick Start
+## Endpoints
 
-### 1. Install & Run
+### GET /health
 
-```bash
-pip install -r requirements.txt
-python -m nemt_parser.integrations.flask_adapter
-```
+Health check endpoint. No authentication required.
 
-The API will run at `http://localhost:5000`
+**Response (200):**
 
-### 2. Upload an Excel File
-
-```bash
-curl -X POST http://localhost:5000/api/nemt/upload \
-  -F "file=@clinic_trips.xlsx" \
-  -F "clinic_id=miami_medical"
-```
-
----
-
-## API Endpoints
-
-### 1. Upload Trip Data
-
-**Endpoint:** `POST /api/nemt/upload`
-
-**Description:** Upload Excel file with trip data. Returns parsed trips as JSON or requests mapping confirmation for new clinics.
-
-**Request:**
-```
-Content-Type: multipart/form-data
-
-Fields:
-- file: Excel file (.xlsx, .xls)
-- clinic_id: Unique clinic identifier (required)
-- clinic_name: Human-readable clinic name (optional)
-- user_id: User who uploaded (optional)
-```
-
-**Response (Success - Returning Clinic):**
 ```json
 {
-  "success": true,
-  "trips_parsed": 15,
-  "trips_saved": 15,
-  "trips_failed": 0,
-  "warnings": [],
-  "trips": [
-    {
-      "patient_name": "John Smith",
-      "patient_phone": "(305) 123-4567",
-      "medicaid_id": "MCD123456789",
-      "pickup_address": "123 Main St",
-      "pickup_city": "Miami",
-      "pickup_state": "FL",
-      "pickup_zip": "33101",
-      "dropoff_address": "999 Hospital Blvd",
-      "dropoff_city": "Miami",
-      "dropoff_state": "FL",
-      "dropoff_zip": "33125",
-      "appointment_date": "2025-01-15",
-      "appointment_time": "09:00:00",
-      "trip_type": "round_trip",
-      "wheelchair": false,
-      "stretcher": false,
-      "ambulatory": true,
-      "notes": "Patient needs assistance walking",
-      "source_clinic_id": "miami_medical",
-      "uploaded_at": "2025-01-10T14:30:00"
-    }
-    // ... up to first 10 trips in response
-  ]
-}
-```
-
-**Response (First-Time Clinic - Needs Mapping):**
-```json
-{
-  "success": false,
-  "needs_mapping": true,
-  "detected_columns": [
-    "Patient Name",
-    "Medicaid #",
-    "Pick-up Address",
-    "Pick-up City",
-    "Pick-up ZIP",
-    "Drop-off Address",
-    "Drop-off City",
-    "Drop-off ZIP",
-    "Appt Date",
-    "Appt Time",
-    "Wheelchair?"
-  ],
-  "suggested_mapping": {
-    "clinic_id": "miami_medical",
-    "clinic_name": "Miami Medical Center",
-    "patient_name": "Patient Name",
-    "medicaid_id": "Medicaid #",
-    "pickup_address": "Pick-up Address",
-    "pickup_city": "Pick-up City",
-    "pickup_zip": "Pick-up ZIP",
-    "dropoff_address": "Drop-off Address",
-    "dropoff_city": "Drop-off City",
-    "dropoff_zip": "Drop-off ZIP",
-    "appointment_date": "Appt Date",
-    "appointment_time": "Appt Time",
-    "wheelchair": "Wheelchair?"
-  },
-  "message": "Please review and confirm the column mapping"
-}
-```
-
-**Response (Error):**
-```json
-{
-  "success": false,
-  "errors": ["Error message"],
-  "warnings": ["Warning message"]
-}
-```
-
-**Example cURL:**
-```bash
-curl -X POST http://localhost:5000/api/nemt/upload \
-  -F "file=@sample_data/clinic_a_trips.xlsx" \
-  -F "clinic_id=miami_medical" \
-  -F "clinic_name=Miami Medical Center"
-```
-
-**Example Python:**
-```python
-import requests
-
-url = "http://localhost:5000/api/nemt/upload"
-files = {"file": open("clinic_trips.xlsx", "rb")}
-data = {
-    "clinic_id": "miami_medical",
-    "clinic_name": "Miami Medical Center"
-}
-
-response = requests.post(url, files=files, data=data)
-print(response.json())
-```
-
----
-
-### 2. Save/Confirm Mapping
-
-**Endpoint:** `POST /api/nemt/mapping/save`
-
-**Description:** Save or update column mapping for a clinic. Use this after reviewing the suggested mapping from first upload.
-
-**Request:**
-```json
-Content-Type: application/json
-
-{
-  "clinic_id": "miami_medical",
-  "clinic_name": "Miami Medical Center",
-  "patient_name": "Patient Name",
-  "medicaid_id": "Medicaid #",
-  "pickup_address": "Pick-up Address",
-  "pickup_city": "Pick-up City",
-  "pickup_zip": "Pick-up ZIP",
-  "dropoff_address": "Drop-off Address",
-  "dropoff_city": "Drop-off City",
-  "dropoff_zip": "Drop-off ZIP",
-  "appointment_date": "Appt Date",
-  "appointment_time": "Appt Time",
-  "wheelchair": "Wheelchair?"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Mapping saved successfully",
-  "clinic_id": "miami_medical"
-}
-```
-
-**Example:**
-```bash
-curl -X POST http://localhost:5000/api/nemt/mapping/save \
-  -H "Content-Type: application/json" \
-  -d '{
-    "clinic_id": "miami_medical",
-    "patient_name": "Patient Name",
-    "medicaid_id": "Medicaid #",
-    "pickup_address": "Pick-up Address",
-    "pickup_city": "Pick-up City",
-    "pickup_zip": "Pick-up ZIP",
-    "dropoff_address": "Drop-off Address",
-    "dropoff_city": "Drop-off City",
-    "dropoff_zip": "Drop-off ZIP",
-    "appointment_date": "Appt Date"
-  }'
-```
-
----
-
-### 3. Get Clinic Mapping
-
-**Endpoint:** `GET /api/nemt/mapping/<clinic_id>`
-
-**Description:** Retrieve saved mapping for a clinic.
-
-**Response:**
-```json
-{
-  "success": true,
-  "mapping": {
-    "clinic_id": "miami_medical",
-    "clinic_name": "Miami Medical Center",
-    "patient_name": "Patient Name",
-    "medicaid_id": "Medicaid #",
-    // ... all mapped fields
-    "created_at": "2025-01-10T10:00:00",
-    "updated_at": "2025-01-10T10:00:00"
+  "status": "ok",
+  "timestamp": "2025-11-29T12:00:00.000000",
+  "version": "1.0.0",
+  "features": {
+    "llm_enhancement": true,
+    "google_geocoding": true,
+    "free_geocoding": true
   }
 }
 ```
 
-**Example:**
-```bash
-curl http://localhost:5000/api/nemt/mapping/miami_medical
-```
-
 ---
 
-### 4. List All Clinics
+### POST /api/upload
 
-**Endpoint:** `GET /api/nemt/clinics`
+Upload an Excel file and receive standardized trip JSON.
 
-**Description:** Get list of all clinics with saved mappings.
+**Headers:**
 
-**Response:**
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-API-Key` | Yes | API authentication key |
+
+**Request body:** `multipart/form-data`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | file | Yes | Excel file (.xlsx or .xls), max 16 MB |
+| `clinic_id` | string | No | Clinic identifier for tracking (default: "unknown") |
+| `use_llm` | string | No | Enable LLM parsing: "true" or "false" |
+| `use_geocoding` | string | No | Enable geocoding: "true" or "false" |
+
+**Example request:**
+
+```bash
+curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -F "file=@clinic_trips.xlsx" \
+  -F "clinic_id=clinic_123" \
+  -F "use_geocoding=true" \
+  -F "use_llm=true"
+```
+
+**Success response (200):**
+
 ```json
 {
   "success": true,
-  "count": 3,
-  "clinics": [
+  "trips": [
     {
-      "clinic_id": "miami_medical",
-      "clinic_name": "Miami Medical Center",
-      "updated_at": "2025-01-10T10:00:00"
-    },
-    {
-      "clinic_id": "orlando_clinic",
-      "clinic_name": "Orlando Clinic",
-      "updated_at": "2025-01-09T15:30:00"
+      "passenger_name": "John Doe",
+      "country_code": "+1",
+      "passenger_phone": "3051234567",
+      "passenger_language": "en",
+      "service_type_id": 1,
+      "source": "123 Main St, Miami, FL 33101",
+      "pickup_latitude": 25.7617,
+      "pickup_longitude": -80.1918,
+      "destination": "Jackson Memorial Hospital, 1611 NW 12th Ave, Miami, FL 33136",
+      "dropoff_latitude": 25.7877,
+      "dropoff_longitude": -80.2106,
+      "pickup_date_time": "2025-12-05 09:00:00",
+      "eta_time": null,
+      "appointment_time": "2025-12-05 11:15:00",
+      "special_note": "Wheelchair accessible",
+      "return_trip_needed": "yes",
+      "return_trip_type": "immediate"
     }
-  ]
+  ],
+  "total_trips": 1,
+  "processing_time_seconds": 3.2,
+  "features_used": {
+    "llm_enhancement": true,
+    "geocoding": true,
+    "geocoding_provider": "google"
+  }
 }
 ```
 
-**Example:**
-```bash
-curl http://localhost:5000/api/nemt/clinics
-```
+**Error responses:**
+
+| Status | Body | Cause |
+|--------|------|-------|
+| 400 | `{"success": false, "error": "No file uploaded. Include file in multipart/form-data as \"file\""}` | Missing file field |
+| 400 | `{"success": false, "error": "Empty filename"}` | Empty filename |
+| 400 | `{"success": false, "error": "Invalid file type. Allowed: xlsx, xls"}` | Wrong file extension |
+| 401 | `{"success": false, "error": "Missing X-API-Key header"}` | No auth header |
+| 401 | `{"success": false, "error": "Invalid API key"}` | Wrong API key |
+| 500 | `{"success": false, "error": "...", "error_type": "..."}` | Internal processing error |
 
 ---
 
-### 5. Get Upload History
+### GET /api/status
 
-**Endpoint:** `GET /api/nemt/history`
+Returns current server configuration. Requires authentication.
 
-**Description:** Get upload history with statistics.
+**Headers:**
 
-**Query Parameters:**
-- `clinic_id` (optional): Filter by clinic
-- `limit` (optional): Max results (default: 50)
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-API-Key` | Yes | API authentication key |
 
-**Response:**
+**Example request:**
+
+```bash
+curl -H "X-API-Key: YOUR_API_KEY_HERE" \
+  https://web-production-c09c8.up.railway.app/api/status
+```
+
+**Response (200):**
+
 ```json
 {
   "success": true,
-  "uploads": [
-    {
-      "id": 1,
-      "clinic_id": "miami_medical",
-      "filename": "clinic_a_trips.xlsx",
-      "total_rows": 15,
-      "successful_rows": 15,
-      "failed_rows": 0,
-      "uploaded_at": "2025-01-10T14:30:00",
-      "errors": null,
-      "warnings": []
-    }
-  ]
-}
-```
-
-**Example:**
-```bash
-# All uploads
-curl http://localhost:5000/api/nemt/history
-
-# Specific clinic
-curl "http://localhost:5000/api/nemt/history?clinic_id=miami_medical&limit=10"
-```
-
----
-
-## Integration with Your Existing Website
-
-### Option 1: Python Backend (Flask/Django/FastAPI)
-
-If you already have a Python backend:
-
-```python
-# In your existing upload handler
-from nemt_parser import TripParser, MappingRepository
-
-def handle_upload(excel_file, clinic_id):
-    # Initialize parser
-    repo = MappingRepository("postgresql://user:pass@localhost/mydb")
-    parser = TripParser(mapping_repository=repo)
-
-    # Parse file
-    result = parser.parse_excel(excel_file, clinic_id=clinic_id)
-
-    # Return JSON
-    return {
-        "trips": [trip.model_dump() for trip in result.trips],
-        "success": result.success
-    }
-```
-
-### Option 2: Standalone Microservice
-
-Run the parser as a separate microservice:
-
-```bash
-# Start the Flask API
-python -m nemt_parser.integrations.flask_adapter
-
-# Your main website calls it via HTTP
-POST http://parser-service:5000/api/nemt/upload
-```
-
-### Option 3: Direct Integration
-
-Import and use directly in your codebase:
-
-```python
-from nemt_parser import TripParser, MappingRepository
-
-# Use in your Django/Flask/FastAPI views
-```
-
----
-
-## Standardized Trip JSON Schema
-
-All trips are returned in this consistent format:
-
-```json
-{
-  "patient_name": "string (required)",
-  "patient_phone": "string (optional)",
-  "medicaid_id": "string (required)",
-  "date_of_birth": "YYYY-MM-DD (optional)",
-
-  "pickup_address": "string (required)",
-  "pickup_city": "string (required)",
-  "pickup_state": "string (default: FL)",
-  "pickup_zip": "string (required)",
-
-  "dropoff_address": "string (required)",
-  "dropoff_city": "string (required)",
-  "dropoff_state": "string (default: FL)",
-  "dropoff_zip": "string (required)",
-
-  "appointment_date": "YYYY-MM-DD (required)",
-  "appointment_time": "HH:MM:SS (optional)",
-
-  "trip_type": "pickup | return | round_trip",
-  "wheelchair": "boolean",
-  "stretcher": "boolean",
-  "ambulatory": "boolean",
-
-  "notes": "string (optional)",
-  "appointment_type": "string (optional)",
-  "clinic_name": "string (optional)",
-
-  "source_clinic_id": "string",
-  "uploaded_at": "ISO 8601 datetime"
+  "configuration": {
+    "llm_available": true,
+    "llm_enabled_by_default": false,
+    "geocoding_enabled_by_default": true,
+    "geocoding_provider": "google",
+    "google_maps_available": true,
+    "max_file_size_mb": 16.0,
+    "allowed_extensions": ["xlsx", "xls"]
+  }
 }
 ```
 
 ---
 
-## Error Handling
+## Trip Schema
 
-All endpoints return consistent error responses:
+Each object in the `trips` array has these fields:
 
-```json
-{
-  "success": false,
-  "error": "Error message",
-  "errors": ["Detailed error 1", "Detailed error 2"],
-  "warnings": ["Warning 1"]
-}
-```
-
-**Common HTTP Status Codes:**
-- `200`: Success
-- `400`: Bad request (invalid file, missing parameters)
-- `404`: Resource not found (e.g., clinic mapping)
-- `500`: Server error
-
----
-
-## Testing
-
-Test the API with the provided sample files:
-
-```bash
-cd nemt-trip-parser
-
-# Test first-time clinic (will request mapping)
-curl -X POST http://localhost:5000/api/nemt/upload \
-  -F "file=@sample_data/clinic_a_trips.xlsx" \
-  -F "clinic_id=test_clinic_a"
-
-# Save the suggested mapping
-curl -X POST http://localhost:5000/api/nemt/mapping/save \
-  -H "Content-Type: application/json" \
-  -d @sample_mapping.json
-
-# Upload again (will auto-parse)
-curl -X POST http://localhost:5000/api/nemt/upload \
-  -F "file=@sample_data/clinic_a_trips_week2.xlsx" \
-  -F "clinic_id=test_clinic_a"
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `passenger_name` | string | Passenger full name |
+| `country_code` | string | Phone country code (default: "+1") |
+| `passenger_phone` | string | Phone number, digits only |
+| `passenger_language` | string | Language code: "en" or "es" |
+| `service_type_id` | integer | 1=ambulatory, 7=wheelchair, 9=stretcher |
+| `source` | string | Full pickup address |
+| `pickup_latitude` | float or null | GPS latitude (requires geocoding) |
+| `pickup_longitude` | float or null | GPS longitude (requires geocoding) |
+| `destination` | string | Full dropoff address |
+| `dropoff_latitude` | float or null | GPS latitude (requires geocoding) |
+| `dropoff_longitude` | float or null | GPS longitude (requires geocoding) |
+| `pickup_date_time` | string | Format: "YYYY-MM-DD HH:MM:SS" |
+| `eta_time` | string or null | Estimated arrival time |
+| `appointment_time` | string | Format: "YYYY-MM-DD HH:MM:SS" |
+| `special_note` | string or null | Additional notes or requirements |
+| `return_trip_needed` | string | "yes" or "no" |
+| `return_trip_type` | string or null | "immediate" or "scheduled" |
 
 ---
 
-## Database Configuration
+## Processing Modes
 
-By default, uses SQLite. For production, use PostgreSQL:
-
-```python
-# In your Flask app config
-app.config['NEMT_DATABASE_URL'] = 'postgresql://user:pass@localhost/nemt_db'
-```
-
-Supported databases:
-- SQLite: `sqlite:///nemt_trips.db`
-- PostgreSQL: `postgresql://user:pass@host/db`
-- MySQL: `mysql://user:pass@host/db`
+| Parameter | Effect | Cost |
+|-----------|--------|------|
+| `use_llm=false, use_geocoding=false` | Basic parsing only | Free |
+| `use_llm=false, use_geocoding=true` | Parsing + GPS coordinates | ~$0/trip (free tier) |
+| `use_llm=true, use_geocoding=true` | Full AI parsing + GPS | ~$0.00025/trip |
 
 ---
 
-## Next Steps
+## Rate Limits and Constraints
 
-1. ✅ **Test with sample data** - Use the provided Excel files
-2. ✅ **Integrate into your website** - Add the API endpoints
-3. ⚙️ **Configure database** - Set up PostgreSQL for production
-4. 🎨 **Build UI** - Create frontend for mapping review
-5. 🤖 **Optional: Add LLM** - Enhance mapping suggestions with Claude/GPT
+- Maximum file size: 16 MB
+- Allowed file types: `.xlsx`, `.xls`
+- Recommended client timeout: 120 seconds
+- For files with 100+ trips, expect 30-60 seconds processing time
 
 ---
 
-For questions or issues, check the examples in `/examples` directory.
+Back to [README](README.md).

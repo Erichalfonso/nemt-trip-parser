@@ -11,7 +11,7 @@ import json
 # ============================================================================
 
 # Path to YOUR Excel file
-EXCEL_FILE = r"C:\Users\erich\Downloads\ppol_example_small_clinic_messy.xlsx"  # <-- CHANGE THIS
+EXCEL_FILE = "sample_data/clinic_a_trips.xlsx"  # <-- CHANGE THIS
 
 # Your clinic ID
 CLINIC_ID = "clinic_1"  # <-- CHANGE THIS
@@ -127,7 +127,7 @@ def test_my_excel_file():
                 print(f"   From: {trip['source']}")
                 print(f"   To: {trip['destination']}")
                 print(f"   When: {trip['appointment_time']}")
-                print(f"   Service: {trip['service_type_id']} (1=ambulatory, 2=wheelchair, 3=stretcher)")
+                print(f"   Service: {trip['service_type_id']} (1=ambulatory, 7=wheelchair, 9=stretcher)")
 
             print()
             print("=" * 80)

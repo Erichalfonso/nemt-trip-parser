@@ -1,56 +1,49 @@
-# NEMT Parser API - Integration Guide for Website Team
+# Integration Guide
 
-## Quick Start
+How to connect your website backend to the NEMT Trip Parser API.
 
-Your parser API is live at: **`https://web-production-c09c8.up.railway.app/api/upload`**
-
----
-
-## 🔑 Authentication
-
-Add this header to all requests:
-```
-X-API-Key: REDACTED_API_KEY
-```
+**API endpoint:** `https://web-production-c09c8.up.railway.app/api/upload`
 
 ---
 
-## 📡 API Endpoint
+## Authentication
+
+Include this header in all requests:
+
+```
+X-API-Key: YOUR_API_KEY_HERE
+```
+
+Store the key in your environment variables. Never expose it in frontend code.
+
+---
+
+## API Endpoint
 
 **URL:** `POST https://web-production-c09c8.up.railway.app/api/upload`
 
 **Content-Type:** `multipart/form-data`
 
-**Form Data:**
+**Form fields:**
 - `file` (required): Excel file (.xlsx or .xls)
-- `clinic_id` (optional): Clinic identifier
-- `use_geocoding` (optional): "true" or "false" (default: true)
-- `use_llm` (optional): "true" or "false" (default: false)
+- `clinic_id` (optional): Clinic identifier string
+- `use_geocoding` (optional): "true" or "false" (default: "true")
+- `use_llm` (optional): "true" or "false" (default: "false")
 
 ---
 
-## 💻 Integration Code Examples
+## Code Examples
 
 ### Python (Flask)
 
 ```python
 import requests
+import os
 
 PARSER_API_URL = "https://web-production-c09c8.up.railway.app/api/upload"
-PARSER_API_KEY = "REDACTED_API_KEY"
+PARSER_API_KEY = os.getenv("PARSER_API_KEY", "YOUR_API_KEY_HERE")
 
 def process_clinic_upload(uploaded_file, clinic_id):
-    """
-    Process clinic Excel upload via parser API
-
-    Args:
-        uploaded_file: File object from request.files['file']
-        clinic_id: Clinic identifier
-
-    Returns:
-        dict: {success: bool, trips: list, total_trips: int}
-    """
-
     files = {
         'file': (
             uploaded_file.filename,
@@ -74,7 +67,7 @@ def process_clinic_upload(uploaded_file, clinic_id):
             files=files,
             data=data,
             headers=headers,
-            timeout=120  # 2 minute timeout
+            timeout=120
         )
 
         if response.status_code == 200:
@@ -100,20 +93,14 @@ def process_clinic_upload(uploaded_file, clinic_id):
         return {'success': False, 'error': str(e)}
 
 
-# Add this to your existing backend route:
 @app.route('/api/clinic/upload', methods=['POST'])
 def handle_clinic_upload():
-    """Your existing upload endpoint"""
-
-    # Get file from clinic's browser
     file = request.files['file']
     clinic_id = request.form.get('clinic_id')
 
-    # Call parser API
     result = process_clinic_upload(file, clinic_id)
 
     if result['success']:
-        # Save trips to your database
         for trip in result['trips']:
             db.trips.insert(trip)
 
@@ -129,17 +116,16 @@ def handle_clinic_upload():
         }, 500
 ```
 
----
-
 ### Python (Django)
 
 ```python
 import requests
+import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 PARSER_API_URL = "https://web-production-c09c8.up.railway.app/api/upload"
-PARSER_API_KEY = "REDACTED_API_KEY"
+PARSER_API_KEY = os.getenv("PARSER_API_KEY", "YOUR_API_KEY_HERE")
 
 @csrf_exempt
 def upload_clinic_trips(request):
@@ -152,7 +138,6 @@ def upload_clinic_trips(request):
     if not file:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
 
-    # Call parser API
     files = {'file': (file.name, file.read(), file.content_type)}
     data = {'clinic_id': clinic_id, 'use_geocoding': 'true'}
     headers = {'X-API-Key': PARSER_API_KEY}
@@ -168,7 +153,6 @@ def upload_clinic_trips(request):
     if response.status_code == 200:
         result = response.json()
 
-        # Save to Django models
         from .models import Trip
         for trip_data in result['trips']:
             Trip.objects.create(**trip_data)
@@ -184,8 +168,6 @@ def upload_clinic_trips(request):
         }, status=500)
 ```
 
----
-
 ### Node.js (Express)
 
 ```javascript
@@ -193,7 +175,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 const PARSER_API_URL = 'https://web-production-c09c8.up.railway.app/api/upload';
-const PARSER_API_KEY = 'REDACTED_API_KEY';
+const PARSER_API_KEY = process.env.PARSER_API_KEY || 'YOUR_API_KEY_HERE';
 
 async function processClinicUpload(file, clinicId) {
     const formData = new FormData();
@@ -225,7 +207,6 @@ async function processClinicUpload(file, clinicId) {
     }
 }
 
-// Add to your Express routes:
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -233,7 +214,6 @@ app.post('/api/clinic/upload', upload.single('file'), async (req, res) => {
     const result = await processClinicUpload(req.file, req.body.clinic_id);
 
     if (result.success) {
-        // Save to database
         const Trip = require('./models/Trip');
         await Trip.insertMany(result.trips);
 
@@ -250,8 +230,6 @@ app.post('/api/clinic/upload', upload.single('file'), async (req, res) => {
 });
 ```
 
----
-
 ### PHP (Laravel)
 
 ```php
@@ -263,16 +241,15 @@ use Illuminate\Support\Facades\Http;
 class TripController extends Controller
 {
     const PARSER_API_URL = 'https://web-production-c09c8.up.railway.app/api/upload';
-    const PARSER_API_KEY = 'REDACTED_API_KEY';
 
     public function uploadClinicTrips(Request $request)
     {
         $file = $request->file('file');
         $clinicId = $request->input('clinic_id');
+        $apiKey = config('services.nemt_parser.key');
 
-        // Call parser API
         $response = Http::withHeaders([
-            'X-API-Key' => self::PARSER_API_KEY
+            'X-API-Key' => $apiKey
         ])->timeout(120)->attach(
             'file', file_get_contents($file->getRealPath()), $file->getClientOriginalName()
         )->post(self::PARSER_API_URL, [
@@ -283,7 +260,6 @@ class TripController extends Controller
         if ($response->successful()) {
             $result = $response->json();
 
-            // Save to database
             foreach ($result['trips'] as $tripData) {
                 Trip::create($tripData);
             }
@@ -304,21 +280,9 @@ class TripController extends Controller
 
 ---
 
-## 📥 Request Example
+## Response Format
 
-```bash
-curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
-  -H "X-API-Key: REDACTED_API_KEY" \
-  -F "file=@clinic_trips.xlsx" \
-  -F "clinic_id=clinic_123" \
-  -F "use_geocoding=true"
-```
-
----
-
-## 📤 Response Format
-
-### Success Response (200)
+### Success (200)
 
 ```json
 {
@@ -354,7 +318,7 @@ curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
 }
 ```
 
-### Error Response (400/401/500)
+### Error (400/401/500)
 
 ```json
 {
@@ -366,7 +330,7 @@ curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
 
 ---
 
-## 🗂️ Trip Data Schema
+## Trip Data Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -374,7 +338,7 @@ curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
 | `country_code` | string | Phone country code ("+1") |
 | `passenger_phone` | string | Digits only |
 | `passenger_language` | string | "en" or "es" |
-| `service_type_id` | int | 1=ambulatory, 2=wheelchair, 3=stretcher |
+| `service_type_id` | int | 1=ambulatory, 7=wheelchair, 9=stretcher |
 | `source` | string | Full pickup address |
 | `pickup_latitude` | float/null | GPS latitude |
 | `pickup_longitude` | float/null | GPS longitude |
@@ -390,180 +354,117 @@ curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
 
 ---
 
-## ⚙️ Optional Features
+## Optional Features
 
-### Disable Geocoding (faster, but no coordinates)
-
-```python
-data = {
-    'clinic_id': clinic_id,
-    'use_geocoding': 'false'  # Skip geocoding
-}
-```
-
-### Enable LLM Enhancement (better address cleaning)
+### Disable geocoding (faster, no coordinates)
 
 ```python
 data = {
     'clinic_id': clinic_id,
-    'use_llm': 'true'  # Use Claude AI to clean addresses
+    'use_geocoding': 'false'
 }
 ```
 
-**Note:** LLM requires `ANTHROPIC_API_KEY` to be configured on the parser API.
+### Enable LLM enhancement (better address cleaning)
+
+```python
+data = {
+    'clinic_id': clinic_id,
+    'use_llm': 'true'
+}
+```
+
+LLM requires `ANTHROPIC_API_KEY` configured on the server.
 
 ---
 
-## 🐛 Error Handling
-
-### Common Errors
+## Error Handling
 
 | Status | Error | Cause | Solution |
 |--------|-------|-------|----------|
 | 401 | "Missing X-API-Key header" | No auth header | Add `X-API-Key` header |
-| 401 | "Invalid API key" | Wrong key | Use correct API key |
+| 401 | "Invalid API key" | Wrong key | Check your API key |
 | 400 | "No file uploaded" | Missing file | Include `file` in form data |
 | 400 | "Invalid file type" | Wrong extension | Use .xlsx or .xls only |
-| 500 | Parser error | Internal error | Contact Erich |
-| 504 | Timeout | File too large/slow | Increase timeout or split file |
+| 500 | Internal error | Processing failure | Check file format, contact support |
+| 504 | Timeout | Large file or slow processing | Increase timeout or split file |
 
-### Recommended Error Handling
+Recommended error handling pattern:
 
 ```python
 try:
     result = process_clinic_upload(file, clinic_id)
 
     if result['success']:
-        # Success - save to database
         for trip in result['trips']:
             db.save(trip)
     else:
-        # Parser returned error
         log_error(f"Parser error: {result['error']}")
-        notify_user("Failed to parse file")
 
 except requests.exceptions.Timeout:
-    # Parser took too long (>2 minutes)
     log_error("Parser timeout")
-    notify_user("File is too large or complex")
 
 except requests.exceptions.ConnectionError:
-    # Cannot reach parser API
     log_error("Parser API unreachable")
-    notify_user("Parser service temporarily unavailable")
 ```
 
 ---
 
-## 📊 Performance
+## Performance
 
-**Expected processing times:**
+| Trips | Geocoding | LLM | Expected Time |
+|-------|-----------|-----|---------------|
+| 10 | Yes | No | 3-5 sec |
+| 10 | Yes | Yes | 8-12 sec |
+| 50 | Yes | No | 15-20 sec |
+| 100 | Yes | No | 30-40 sec |
 
-| Trips | Geocoding | LLM | Time |
-|-------|-----------|-----|------|
-| 10 | Yes | No | ~3-5 sec |
-| 10 | Yes | Yes | ~8-12 sec |
-| 50 | Yes | No | ~15-20 sec |
-| 100 | Yes | No | ~30-40 sec |
-
-**Recommendations:**
-- Show loading indicator for user
-- Set timeout to 120 seconds minimum
-- For >100 trips, consider batching
+Set client timeout to 120 seconds minimum. Show a loading indicator for users.
 
 ---
 
-## 🔒 Security Best Practices
+## Security
 
-1. **Never expose API key in frontend code**
-   - ❌ Bad: `fetch(url, {headers: {'X-API-Key': 'secret'}})`
-   - ✅ Good: Frontend → Your backend → Parser API
-
-2. **Validate files before sending**
-   ```python
-   if not file.filename.endswith(('.xlsx', '.xls')):
-       return {'error': 'Invalid file type'}, 400
-   ```
-
-3. **Limit file size**
-   ```python
-   if file.content_length > 16 * 1024 * 1024:  # 16MB
-       return {'error': 'File too large'}, 400
-   ```
-
-4. **Authenticate clinics** before forwarding to parser
+1. Never expose the API key in frontend code. Route requests through your backend.
+2. Validate files before forwarding: check extension and size.
+3. Authenticate your own users before calling the parser API.
 
 ---
 
-## 🧪 Testing
-
-### Test with Sample File
-
-Download sample: [ppol_example_small_clinic_messy.xlsx](https://github.com/Erichalfonso/nemt-trip-parser/blob/main/sample_data/)
-
-### Test Request
+## Testing
 
 ```bash
 curl -X POST https://web-production-c09c8.up.railway.app/api/upload \
-  -H "X-API-Key: REDACTED_API_KEY" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
   -F "file=@test_file.xlsx" \
   -F "clinic_id=test_clinic"
 ```
 
-### Expected Response
-
-Should return JSON with parsed trips in ~3-5 seconds.
-
----
-
-## 📞 Support
-
-**Issues with parser API?**
-- Contact: Erich Alfonso
-- GitHub Issues: https://github.com/Erichalfonso/nemt-trip-parser/issues
-
-**Response time:** Usually within 24 hours
-
----
-
-## 📈 Monitoring
-
-### Health Check
+### Health check
 
 ```bash
 curl https://web-production-c09c8.up.railway.app/health
 ```
 
-Returns:
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-11-29T12:00:00",
-  "version": "1.0.0"
-}
-```
-
-### Check Configuration
+### Configuration check
 
 ```bash
-curl -H "X-API-Key: REDACTED_API_KEY" \
+curl -H "X-API-Key: YOUR_API_KEY_HERE" \
   https://web-production-c09c8.up.railway.app/api/status
 ```
 
 ---
 
-## 🚀 Quick Integration Checklist
+## Integration Checklist
 
-- [ ] Read this guide
 - [ ] Copy example code for your backend language
-- [ ] Add API key to your environment variables
-- [ ] Test with sample file
+- [ ] Store API key in environment variables
+- [ ] Test with sample Excel file
 - [ ] Integrate into your upload endpoint
-- [ ] Add error handling
+- [ ] Add error handling and timeouts
 - [ ] Test with real clinic data
-- [ ] Deploy to production
-- [ ] Monitor for errors
+- [ ] Deploy and monitor
 
 ---
 
-**You're all set!** The parser API is ready to integrate. 🎉
+Back to [README](README.md).
