@@ -33,12 +33,17 @@ from .core.models import (
 from .core.mapper import ColumnMapper
 from .core.validator import DataValidator
 
-# Database exports
-from .database.repositories import (
-    MappingRepository,
-    TripRepository,
-    UploadHistoryRepository,
-)
+# Database exports (optional — requires sqlalchemy)
+try:
+    from .database.repositories import (
+        MappingRepository,
+        TripRepository,
+        UploadHistoryRepository,
+    )
+except ImportError:
+    MappingRepository = None  # type: ignore[assignment,misc]
+    TripRepository = None  # type: ignore[assignment,misc]
+    UploadHistoryRepository = None  # type: ignore[assignment,misc]
 
 __all__ = [
     # Version
