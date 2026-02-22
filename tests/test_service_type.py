@@ -11,7 +11,7 @@ from datetime import date, time
 
 # === Tests for parse_smart_llm.determine_service_type ===
 
-from parse_smart_llm import determine_service_type as smart_llm_service_type
+from nemt_parser.parsers.smart_llm import determine_service_type as smart_llm_service_type
 
 
 class TestSmartLlmServiceType:
@@ -51,7 +51,7 @@ class TestSmartLlmServiceType:
 
 # === Tests for parse_messy_clinic.determine_service_type ===
 
-from parse_messy_clinic import determine_service_type as messy_clinic_service_type
+from nemt_parser.parsers.messy_clinic import determine_service_type as messy_clinic_service_type
 
 
 class TestMessyClinicServiceType:

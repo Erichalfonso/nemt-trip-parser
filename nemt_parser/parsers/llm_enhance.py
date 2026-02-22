@@ -202,7 +202,7 @@ def parse_with_llm_enhancement(
     print()
 
     # First, parse normally (reuse previous logic)
-    from parse_messy_clinic import parse_messy_excel
+    from .messy_clinic import parse_messy_excel
 
     # Get basic parsed data
     print("Step 1: Basic parsing...")

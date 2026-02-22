@@ -19,11 +19,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import our parser components
-from parse_messy_clinic import parse_messy_excel
-from parse_with_llm import enhance_with_claude
-from parse_smart_llm import parse_excel_with_smart_llm
-from geocode_with_google import geocode_trips_google
-from geocode_free import geocode_trips_free
+from nemt_parser.parsers import parse_messy_excel, enhance_with_claude, parse_excel_with_smart_llm
+from nemt_parser.geocoding import geocode_trips_google, geocode_trips_free
 
 # Initialize Flask app
 app = Flask(__name__)
