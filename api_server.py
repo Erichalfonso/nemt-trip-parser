@@ -41,7 +41,7 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # API Configuration (from environment variables)
-API_KEY = os.getenv('API_KEY')
+API_KEY = os.getenv('API_KEY') or os.getenv('PARSER_API_KEY')
 if not API_KEY:
     raise RuntimeError("API_KEY environment variable is required")
 GOOGLE_MAPS_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
