@@ -1,7 +1,8 @@
 """
-Parse the messy clinic format AS-IS
+Parse messy clinic Excel formats AS-IS.
 
-Handles this clinic's exact format without asking them to change anything.
+Handles various clinic formats without asking them to change anything.
+Detects column names automatically using pattern matching.
 """
 
 import pandas as pd
@@ -10,20 +11,105 @@ import json
 import re
 
 
+# Patterns for detecting which column maps to which field.
+# Each field has a list of regex patterns (matched case-insensitively).
+COLUMN_PATTERNS = {
+    "name": [
+        r"patient.*name", r"full.*name", r"passenger.*name", r"client.*name",
+        r"^name$", r"^patient$",
+    ],
+    "phone": [
+        r"phone", r"telephone", r"contact.*number", r"cell", r"mobile",
+    ],
+    "medicaid_id": [
+        r"medicaid", r"insurance.*id", r"member.*id", r"policy.*number",
+    ],
+    "date": [
+        r"appt.*date", r"appointment.*date", r"service.*date", r"trip.*date",
+        r"visit.*date", r"^date$",
+    ],
+    "time": [
+        r"appt.*time", r"appointment.*time", r"service.*time", r"visit.*time",
+        r"pickup.*time", r"scheduled.*time", r"^time$",
+    ],
+    "pickup_address": [
+        r"pick.?up.*address", r"pick.?up.*location", r"origin.*address",
+        r"from.*address", r"source.*address", r"address.*home",
+        r"home.*address", r"pickup.*location",
+    ],
+    "pickup_city": [
+        r"pick.?up.*city", r"origin.*city", r"from.*city",
+    ],
+    "pickup_zip": [
+        r"pick.?up.*zip", r"origin.*zip", r"from.*zip",
+    ],
+    "dropoff_address": [
+        r"drop.?off.*address", r"drop.?off.*location", r"destination.*address",
+        r"to.*address", r"clinic.*doctor", r"dropoff.*location",
+        r"destination$",
+    ],
+    "dropoff_city": [
+        r"drop.?off.*city", r"destination.*city", r"to.*city",
+    ],
+    "dropoff_zip": [
+        r"drop.?off.*zip", r"destination.*zip", r"to.*zip",
+    ],
+    "wheelchair": [
+        r"wheelchair", r"^wc", r"wc.*required", r"mobility.*aid",
+    ],
+    "notes": [
+        r"notes", r"comments", r"special.*instruction", r"remarks",
+        r"mobility.*notes",
+    ],
+    "return_trip": [
+        r"return",
+    ],
+    "pickup_time": [
+        r"pickup.*time\??$",
+    ],
+}
+
+
+def detect_columns(df_columns):
+    """
+    Detect which DataFrame column maps to which standardized field.
+
+    Returns a dict like {"name": "Patient Name", "date": "Appt Date", ...}
+    """
+    columns_lower = {col: col.lower().strip() for col in df_columns}
+    mapping = {}
+
+    for field, patterns in COLUMN_PATTERNS.items():
+        for col, col_lower in columns_lower.items():
+            if col in mapping.values():
+                continue
+            for pattern in patterns:
+                if re.search(pattern, col_lower):
+                    mapping[field] = col
+                    break
+            if field in mapping:
+                break
+
+    return mapping
+
+
 def parse_messy_date(date_str):
     """Parse various date formats"""
-    if not date_str or date_str.strip() == '':
+    if not date_str or str(date_str).strip() == '':
         return None
 
     date_str = str(date_str).strip()
 
     # Try different formats
     formats = [
+        "%Y-%m-%d",
+        "%m/%d/%Y",
+        "%m/%d/%y",
         "%d-%b",      # "5-Dec"
-        "%m/%d/%y",   # "05/12/25"
         "%d-%m-%y",   # "12-05-25"
         "%m-%d-%Y",
-        "%Y-%m-%d",
+        "%Y-%m-%d %H:%M:%S",
+        "%m/%d/%Y %H:%M",
     ]
 
     for fmt in formats:
@@ -33,8 +119,15 @@ def parse_messy_date(date_str):
             if dt.year == 1900:
                 dt = dt.replace(year=2025)
             return dt.date()
-        except:
+        except (ValueError, TypeError):
             continue
+
+    # Try pandas as fallback
+    try:
+        dt = pd.to_datetime(date_str)
+        return dt.date()
+    except (ValueError, TypeError):
+        pass
 
     return None
 
@@ -157,56 +250,81 @@ def parse_return_trip(return_str):
 
 
 def parse_messy_excel(excel_file=None):
-    """Parse the messy clinic Excel file"""
+    """
+    Parse a messy clinic Excel file.
+
+    Automatically detects column names using pattern matching,
+    so it works with various clinic formats without configuration.
+    """
 
     if excel_file is None:
         import sys
         excel_file = sys.argv[1] if len(sys.argv) > 1 else "sample_data/clinic_a_trips.xlsx"
 
-    print("=" * 80)
-    print("PARSING MESSY CLINIC FORMAT")
-    print("=" * 80)
-    print()
-
     # Read Excel
     df = pd.read_excel(excel_file, dtype=str, na_filter=False)
 
-    print(f"Found {len(df)} rows")
-    print()
+    # Detect column mapping
+    col_map = detect_columns(df.columns)
+
+    # Helper to get a value from a row using the detected mapping
+    def get_val(row, field):
+        col = col_map.get(field)
+        if col and col in row:
+            val = row[col]
+            return str(val).strip() if val else ''
+        return ''
 
     # Parse each row
     trips = []
 
     for idx, row in df.iterrows():
-        # Extract fields
-        date_val = row.get('Date', '')
-        name = row.get('Name', '').strip()
-        phone = row.get('Phone', '')
-        home_address = row.get('Address (Home)', '')
-        clinic = row.get('Clinic / Doctor', '')
-        appt_time_str = row.get('Appt time', '')
-        pickup_time_str = row.get('Pickup time?', '')
-        return_str = row.get('Return?', '')
-        notes = row.get('Mobility / Notes', '')
+        # Extract fields using detected columns
+        name = get_val(row, 'name')
+        if not name:
+            continue  # Skip rows without a name
+
+        date_val = get_val(row, 'date')
+        phone = get_val(row, 'phone')
+        pickup_addr = get_val(row, 'pickup_address')
+        pickup_city = get_val(row, 'pickup_city')
+        pickup_zip = get_val(row, 'pickup_zip')
+        dropoff_addr = get_val(row, 'dropoff_address')
+        dropoff_city = get_val(row, 'dropoff_city')
+        dropoff_zip = get_val(row, 'dropoff_zip')
+        appt_time_str = get_val(row, 'time')
+        pickup_time_str = get_val(row, 'pickup_time')
+        return_str = get_val(row, 'return_trip')
+        wheelchair_str = get_val(row, 'wheelchair')
+        notes = get_val(row, 'notes')
 
         # Parse date
         appt_date = parse_messy_date(date_val)
         if not appt_date:
-            print(f"[WARNING] Row {idx+1}: Could not parse date '{date_val}'")
             continue
 
         # Parse times
         appt_time = parse_time_str(appt_time_str)
         pickup_time = parse_time_str(pickup_time_str)
 
-        # Parse address
-        street, city, state, zip_code = parse_address(home_address)
+        # Build source address: use separate fields if available, else use combined
+        if pickup_city or pickup_zip:
+            source = ', '.join(filter(None, [pickup_addr, pickup_city, 'FL', pickup_zip]))
+        else:
+            # Combined address field (like clinic_c: "700 Bay St, Tampa, FL 33601")
+            source = pickup_addr
+
+        # Build destination address
+        if dropoff_city or dropoff_zip:
+            destination = ', '.join(filter(None, [dropoff_addr, dropoff_city, 'FL', dropoff_zip]))
+        else:
+            destination = dropoff_addr
 
         # Clean phone
         phone_clean = clean_phone(phone)
 
-        # Determine service type
-        service_type = determine_service_type(notes)
+        # Determine service type from wheelchair column or notes
+        service_type = determine_service_type(wheelchair_str or notes)
 
         # Parse return trip
         return_needed, return_type = parse_return_trip(return_str)
@@ -224,85 +342,28 @@ def parse_messy_excel(excel_file=None):
         else:
             pickup_datetime_str = appointment_time_str
 
-        # Build trip object in YOUR format
+        # Build trip object
         trip = {
             "passenger_name": name,
             "country_code": "+1",
             "passenger_phone": phone_clean,
             "passenger_language": "es" if "spanish" in str(notes).lower() else "en",
             "service_type_id": service_type,
-
-            # Source - use home address as-is
-            "source": street if street else home_address,
-            "pickup_latitude": None,  # Need geocoding
+            "source": source,
+            "pickup_latitude": None,
             "pickup_longitude": None,
-
-            # Destination - use clinic name
-            "destination": clinic,
-            "dropoff_latitude": None,  # Need geocoding
+            "destination": destination,
+            "dropoff_latitude": None,
             "dropoff_longitude": None,
-
-            # Times
             "pickup_date_time": pickup_datetime_str,
             "eta_time": None,
             "appointment_time": appointment_time_str,
-
-            # Notes
-            "special_note": notes,
-
-            # Return trip
+            "special_note": notes if notes else None,
             "return_trip_needed": return_needed,
-            "return_trip_type": return_type
+            "return_trip_type": return_type,
         }
 
         trips.append(trip)
-
-        print(f"[OK] Parsed: {name}")
-
-    print()
-    print("=" * 80)
-    print(f"SUCCESSFULLY PARSED {len(trips)} TRIPS")
-    print("=" * 80)
-    print()
-
-    # Show sample
-    if trips:
-        print("SAMPLE TRIP (Your Format):")
-        print("=" * 80)
-        print(json.dumps(trips[0], indent=2))
-        print()
-
-    # Show all trips summary
-    print("=" * 80)
-    print("ALL TRIPS:")
-    print("=" * 80)
-    for i, trip in enumerate(trips, 1):
-        print(f"\n{i}. {trip['passenger_name']}")
-        print(f"   Phone: {trip['country_code']} {trip['passenger_phone']}")
-        print(f"   Language: {trip['passenger_language']}")
-        print(f"   From: {trip['source']}")
-        print(f"   To: {trip['destination']}")
-        print(f"   Pickup: {trip['pickup_date_time']}")
-        print(f"   Appointment: {trip['appointment_time']}")
-        print(f"   Service: {trip['service_type_id']} (1=ambulatory, 7=wheelchair, 9=stretcher)")
-        print(f"   Return: {trip['return_trip_needed']} ({trip['return_trip_type']})")
-        print(f"   Notes: {trip['special_note']}")
-
-    # Full JSON output
-    print()
-    print("=" * 80)
-    print("FULL JSON OUTPUT (Copy this!):")
-    print("=" * 80)
-    print(json.dumps(trips, indent=2))
-    print()
-
-    # Save to file
-    with open('messy_clinic_output.json', 'w') as f:
-        json.dump(trips, f, indent=2)
-
-    print("=" * 80)
-    print("[OK] JSON saved to: messy_clinic_output.json")
-    print("=" * 80)
 
     return trips
 
